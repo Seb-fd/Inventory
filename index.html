@@ -7,6 +7,9 @@
         <!-- Iconos de Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <!-- Librería de Gráficos (Chart.js) -->
+
+    <link rel="stylesheet" href="estilo-mejorado.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="estilo.css">
 </head>
@@ -100,31 +103,42 @@
             
             <!-- Las demás secciones se mantienen igual -->
             <!-- Sección 1: Inventario Actual -->
-            <section id="inventario" class="content-section">
-                <h2><i class="fas fa-cubes"></i> Inventario Actual</h2>
-                <p>Lista de todos los productos y su stock disponible.</p>
-                <button id="cargarInventarioBtn" class="btn secondary-btn">
-                    <i class="fas fa-boxes"></i> Refrescar Inventario
-                </button>
-                <div id="statusInventario" class="status-message"></div>
-                <div style="max-height: 600px; overflow-y: auto;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Nombre</th>
-                                <th>Código</th>
-                                <th>Categoría</th>
-                                <th>Stock</th>
-                                <th>P. Venta</th>
-                            </tr>
-                        </thead>
-                        <tbody id="inventarioTableBody">
-                            <tr><td colspan="6">Presiona "Refrescar Inventario" para cargar los datos.</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+<!-- Sección 1: Inventario Actual -->
+<section id="inventario" class="content-section">
+    <h2><i class="fas fa-cubes"></i> Inventario Actual</h2>
+    <p>Lista de todos los productos y su stock disponible.</p>
+    
+    <div class="button-group">
+        <button id="cargarInventarioBtn" class="btn secondary-btn">
+            <i class="fas fa-sync"></i> Refrescar Inventario
+        </button>
+    </div>
+    
+    <div id="statusInventario" class="status-message"></div>
+    
+    <!-- Contenedor responsive para la tabla -->
+<!-- En la sección de Inventario, reemplaza el contenedor de tabla -->
+<div class="data-table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Código</th>
+                <th>Categoría</th>
+                <th>Stock</th>
+                <th>P. Venta</th>
+            </tr>
+        </thead>
+        <tbody id="inventarioTableBody">
+            <tr><td colspan="6">Presiona "Refrescar Inventario" para cargar los datos.</td></tr>
+        </tbody>
+    </table>
+    <div class="scroll-hint hidden" id="inventarioScrollHint">
+        <i class="fas fa-arrows-alt-h"></i> Desliza horizontalmente para ver más columnas
+    </div>
+</div>
+</section>
 
             <!-- Sección 2: Registrar Producto -->
             <section id="productos" class="content-section">
@@ -249,22 +263,29 @@
             </section>
 
             <!-- Sección 6: Resúmenes -->
-            <section id="resumenes" class="content-section">
-                <h2><i class="fas fa-list-alt"></i> Resúmenes y Reportes</h2>
-                <div class="form-grid">
-                    <button id="resumenVentasBtn" class="btn secondary-btn"><i class="fas fa-chart-bar"></i> Ver Resumen de Ventas (Histórico)</button>
-                    <button id="resumenComprasBtn" class="btn secondary-btn"><i class="fas fa-chart-bar"></i> Ver Resumen de Compras (Histórico)</button>
-                </div>
-                
-                <div id="statusResumen" class="status-message"></div>
-                
-                <div style="max-height: 600px; overflow-y: auto; margin-top: 20px;">
-                    <table class="data-table hidden" id="resumenTable">
-                        <thead></thead>
-                        <tbody id="resumenTableBody"></tbody>
-                    </table>
-                </div>
-            </section>
+<!-- Sección 6: Resúmenes -->
+<section id="resumenes" class="content-section">
+    <h2><i class="fas fa-list-alt"></i> Resúmenes y Reportes</h2>
+    
+    <div class="button-group">
+        <button id="resumenVentasBtn" class="btn secondary-btn">
+            <i class="fas fa-chart-bar"></i> Ventas
+        </button>
+        <button id="resumenComprasBtn" class="btn secondary-btn">
+            <i class="fas fa-chart-bar"></i> Compras
+        </button>
+    </div>
+    
+    <div id="statusResumen" class="status-message"></div>
+    
+    <!-- Contenedor responsive para la tabla de resumen -->
+    <div class="data-table-container">
+        <table class="data-table hidden" id="resumenTable">
+            <thead></thead>
+            <tbody id="resumenTableBody"></tbody>
+        </table>
+    </div>
+</section>
 
             <!-- Sección 7: Configuración -->
             <section id="configuracion" class="content-section">
@@ -286,6 +307,10 @@
             </section>
         </main>
     </div>
+
+<button class="mobile-toggle hidden" id="mobileToggle">
+    <i class="fas fa-bars"></i>
+</button>
 
     <script src="script.js"></script>
 

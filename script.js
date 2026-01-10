@@ -1,5 +1,123 @@
      const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwLUWJs-PhULiqDi6zbNctVZGqzitqXEViBBEDRQbQVUvdta0HWxTRj2Q4_nCUtxSzY9g/exec'; 
-        let productDataCache = {};
+      
+  const mobileToggle = document.getElementById('mobileToggle');
+    const sidebar = document.querySelector('.sidebar');
+    
+    // Crear botón móvil si no existe
+    if (!mobileToggle) {
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'mobile-toggle hidden';
+        toggleBtn.id = 'mobileToggle';
+        toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
+        document.body.appendChild(toggleBtn);
+    }
+    
+    const mobileToggleBtn = document.getElementById('mobileToggle');
+    
+    if (mobileToggleBtn && sidebar) {
+        // Verificar ancho de pantalla
+        function checkMobile() {
+            if (window.innerWidth <= 992) {
+                mobileToggleBtn.classList.remove('hidden');
+            } else {
+                mobileToggleBtn.classList.add('hidden');
+                sidebar.classList.remove('active');
+            }
+        }
+        
+        // Inicializar
+        checkMobile();
+        
+        // Redimensionamiento
+        window.addEventListener('resize', checkMobile);
+        
+        // Toggle del menú
+        mobileToggleBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            sidebar.classList.toggle('active');
+        });
+        
+        // Cerrar menú al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            if (window.innerWidth <= 992 && 
+                sidebar.classList.contains('active') &&
+                !sidebar.contains(e.target) && 
+                !mobileToggleBtn.contains(e.target)) {
+                sidebar.classList.remove('active');
+            }
+        });
+        
+        // Cerrar menú al hacer clic en enlace
+        document.querySelectorAll('.sidebar-nav a').forEach(link => {
+            link.addEventListener('click', function() {
+                if (window.innerWidth <= 992) {
+                    sidebar.classList.remove('active');
+                }
+            });
+        });
+    }
+    
+    // Optimizar tablas para móviles
+    function optimizeTablesForMobile() {
+        const tableContainers = document.querySelectorAll('.data-table-container');
+        
+        tableContainers.forEach(container => {
+            const table = container.querySelector('.data-table');
+            const hint = container.querySelector('.scroll-hint');
+            
+            if (table && window.innerWidth <= 768) {
+                // Mostrar hint de scroll
+                if (hint) {
+                    hint.classList.remove('hidden');
+                }
+                
+                // Verificar si la tabla es más ancha que el contenedor
+                const tableWidth = table.scrollWidth;
+                const containerWidth = container.clientWidth;
+                
+                if (tableWidth > containerWidth && hint) {
+                    hint.classList.remove('hidden');
+                } else if (hint) {
+                    hint.classList.add('hidden');
+                }
+            } else if (hint) {
+                // Ocultar hint en pantallas grandes
+                hint.classList.add('hidden');
+            }
+        });
+    }
+    
+    // Inicializar optimización de tablas
+    optimizeTablesForMobile();
+    
+    // Re-optimizar al redimensionar
+    window.addEventListener('resize', optimizeTablesForMobile);
+    
+    // Re-optimizar después de cargar datos en tablas
+    const originalLoadInventario = window.loadInventario;
+    if (originalLoadInventario) {
+        window.loadInventario = async function() {
+            await originalLoadInventario();
+            setTimeout(optimizeTablesForMobile, 100);
+        };
+    }
+    
+    // Ajustar botones para evitar texto desbordado
+    function adjustButtons() {
+        const buttons = document.querySelectorAll('.btn');
+        buttons.forEach(btn => {
+            const text = btn.textContent || btn.innerText;
+            if (text.length > 30) {
+                btn.style.fontSize = '0.8rem';
+                btn.style.padding = 'var(--space-2) var(--space-3)';
+            }
+        });
+    }
+    
+    // Ajustar después de cargar la página
+    setTimeout(adjustButtons, 500);
+     
+     let productDataCache = {};
         let resumenFinancieroChart, tendenciasChart;
 
         document.addEventListener('DOMContentLoaded', () => {
