@@ -1,7 +1,7 @@
 // ***************************************************************
 // ⚠️ 1. REEMPLAZA ESTE VALOR con el ID real de tu Google Sheet
 // ***************************************************************
-const SPREADSHEET_ID = "1j4vfZHoaq2YqG63tAuz97gb79IWoOmJFPWlls1eZ64k"; 
+const SPREADSHEET_ID = "1vl3MbYVqN6E7yyLwzzigwDsF858Gkm_3GQU6alp8_7k"; 
 
 // Nombres de las pestañas
 const HOJA_CATEGORIAS = "Categorias";

@@ -1,4 +1,4 @@
-     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwLUWJs-PhULiqDi6zbNctVZGqzitqXEViBBEDRQbQVUvdta0HWxTRj2Q4_nCUtxSzY9g/exec'; 
+     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxj9QZGXhlrrzPO7QTmCOjAMTEnJXwA5PtbF4YTTMEnIJ9GIMZTPs2THF51Tc_OBbB4/exec'; 
       
   const mobileToggle = document.getElementById('mobileToggle');
     const sidebar = document.querySelector('.sidebar');
@@ -484,7 +484,10 @@
 
             const data = {};
             Array.from(form.elements).forEach(input => {
-                if (input.id && input.id.startsWith('p_') || input.id.startsWith('c_')) {
+                if (
+                    input.id &&
+                    (input.id.startsWith('p_') || input.id.startsWith('c_'))
+                ) {
                     data[input.id.replace(/p_|c_/, '')] = input.value;
                 }
             });
@@ -551,24 +554,51 @@
             detailDiv.classList.remove('hidden');
             
             const isCompra = prefix === 'co';
-            const price = isCompra ? product.precio_compra : product.precio_venta;
             const priceLabel = isCompra ? 'Precio Compra Actual' : 'Precio Venta Actual';
+            const basePrice = isCompra ? product.precio_compra : product.precio_venta;
 
-            const stockStyle = product.stock < 5 ? 'style="font-weight:bold; color:var(--danger-color);"' : 'style="font-weight:bold; color:var(--secondary-color);"';
+            const stockStyle = product.stock < 5
+                ? 'style="font-weight:bold; color:var(--danger-color);"'
+                : 'style="font-weight:bold; color:var(--secondary-color);"';
 
             detailDiv.innerHTML = `
                 <p><b>ID:</b> ${product.id} | <b>Producto:</b> ${product.nombre} (Cód: ${product.código})</p>
                 <p><b>Categoría:</b> ${product.categoría}</p>
                 <p><b>Stock Actual:</b> <span ${stockStyle}>${product.stock}</span></p>
-                <p><b>${priceLabel}:</b> $${parseFloat(price).toFixed(2)}</p>
+                <p><b>${priceLabel}:</b> $${parseFloat(basePrice).toFixed(2)}</p>
             `;
-            
-            document.getElementById(`${prefix}_precio_${isCompra ? 'compra' : 'venta'}`).value = parseFloat(price).toFixed(2);
-            
+
+            const priceInput = document.getElementById(`${prefix}_precio_${isCompra ? 'compra' : 'venta'}`);
+            priceInput.value = parseFloat(basePrice).toFixed(2);
+
+            // 👇 SOLO PARA VENTAS: selector de precio
+            if (!isCompra) {
+                const priceSelect = document.getElementById('v_precio_tipo');
+
+                const prices = {
+                    precio_venta: product.precio_venta,
+                    precio_venta_2: product.precio_venta_2 || product.precio_venta,
+                    precio_venta_3: product.precio_venta_3 || product.precio_venta,
+                    precio_venta_4: product.precio_venta_4 || product.precio_venta,
+                };
+
+                priceSelect.onchange = () => {
+                    const selected = priceSelect.value;
+                    priceInput.value = parseFloat(prices[selected]).toFixed(2);
+                };
+
+                // Disparar cambio inicial
+                priceSelect.dispatchEvent(new Event('change'));
+            }
+
             if (!isCompra && product.stock < 5) {
-                detailDiv.innerHTML += `<p class="status-message warning" style="display:block; margin-top: 10px;">Stock bajo. Solo quedan ${product.stock} unidades.</p>`;
+                detailDiv.innerHTML += `
+                    <p class="status-message warning" style="display:block; margin-top:10px;">
+                        Stock bajo. Solo quedan ${product.stock} unidades.
+                    </p>`;
             }
         }
+
 
         async function handleTransactionPost(e, type) {
             e.preventDefault();
@@ -623,7 +653,7 @@
         async function loadInventario() {
             displayStatus('statusInventario', 'info', 'Cargando datos de inventario...');
             const tableBody = document.getElementById('inventarioTableBody');
-            tableBody.innerHTML = '<tr><td colspan="6">Cargando...</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="9">Cargando...</td></tr>';
 
             try {
                 const response = await fetch(`${SCRIPT_URL}?action=getInventario`);
@@ -633,24 +663,34 @@
                     displayStatus('statusInventario', 'success', `Inventario cargado: ${data.data.length} productos.`);
                     tableBody.innerHTML = data.data.map(p => {
                         const stockStyle = p.stock < 5 ? 'style="color: var(--danger-color); font-weight: bold;"' : '';
+
+                        const pv1 = Number(p.precio_venta) || 0;
+                        const pv2 = Number(p.precio_venta_2) || 0;
+                        const pv3 = Number(p.precio_venta_3) || 0;
+                        const pv4 = Number(p.precio_venta_4) || 0;
+                        const pc = Number(p.precio_compra) || 0;
+
                         return `
-                            <tr>
-                                <td>${p.id}</td>
+                            <tr data-id="${p.id}">
                                 <td>${p.nombre}</td>
                                 <td>${p.código}</td>
                                 <td>${p.categoría}</td>
                                 <td ${stockStyle}>${p.stock}</td>
-                                <td>$${p.precio_venta.toFixed(2)}</td>
+                                <td>$${pc.toFixed(2)}</td>
+                                <td>$${pv1.toFixed(2)}</td>
+                                <td>$${pv2.toFixed(2)}</td>
+                                <td>$${pv3.toFixed(2)}</td>
+                                <td>$${pv4.toFixed(2)}</td>
                             </tr>
                         `;
                     }).join('');
                 } else {
                     displayStatus('statusInventario', 'warning', data.message);
-                    tableBody.innerHTML = '<tr><td colspan="6">No hay productos en inventario.</td></tr>';
+                    tableBody.innerHTML = '<tr><td colspan="9">No hay productos en inventario.</td></tr>';
                 }
             } catch (error) {
                 displayStatus('statusInventario', 'error', `Error al cargar inventario: ${error.message}`);
-                tableBody.innerHTML = '<tr><td colspan="6">Error al cargar datos.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="9">Error al cargar datos.</td></tr>';
             }
         }
         
