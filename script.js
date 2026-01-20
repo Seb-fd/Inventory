@@ -3,6 +3,8 @@ const SCRIPT_URL =
 
 const mobileToggle = document.getElementById("mobileToggle");
 const sidebar = document.querySelector(".sidebar");
+let inventarioCargado = false;
+let inventarioCache = [];
 
 // Crear botón móvil si no existe
 if (!mobileToggle) {
@@ -96,15 +98,6 @@ optimizeTablesForMobile();
 // Re-optimizar al redimensionar
 window.addEventListener("resize", optimizeTablesForMobile);
 
-// Re-optimizar después de cargar datos en tablas
-const originalLoadInventario = window.loadInventario;
-if (originalLoadInventario) {
-  window.loadInventario = async function () {
-    await originalLoadInventario();
-    setTimeout(optimizeTablesForMobile, 100);
-  };
-}
-
 // Ajustar botones para evitar texto desbordado
 function adjustButtons() {
   const buttons = document.querySelectorAll(".btn");
@@ -144,10 +137,17 @@ function setupNavigation() {
       sections.forEach((section) => {
         if (section.id === targetId) {
           section.classList.add("active");
+
           if (targetId === "dashboard") {
             handleLoadDashboard();
-          } else if (targetId === "inventario") {
-            document.getElementById("cargarInventarioBtn").click();
+          }
+
+          if (targetId === "inventario") {
+            loadInventario();
+          }
+
+          if (targetId === "ventas") {
+            prepararPOS();
           }
         } else {
           section.classList.remove("active");
@@ -168,7 +168,7 @@ async function loadInitialData() {
       displayStatus(
         "statusProducto",
         "warning",
-        `No se pudieron cargar las categorías: ${data.message}.`
+        `No se pudieron cargar las categorías: ${data.message}.`,
       );
       populateCategories([]);
     }
@@ -176,7 +176,7 @@ async function loadInitialData() {
     displayStatus(
       "statusProducto",
       "error",
-      `Error de conexión al cargar categorías.`
+      `Error de conexión al cargar categorías.`,
     );
     populateCategories([]);
   }
@@ -216,7 +216,7 @@ function setupForms() {
   document.getElementById("resetDBBtn").addEventListener("click", () => {
     if (
       window.confirm(
-        "¡ADVERTENCIA! ¿Deseas RESETEAR TODA la base de datos? Esto es irreversible."
+        "¡ADVERTENCIA! ¿Deseas RESETEAR TODA la base de datos? Esto es irreversible.",
       )
     ) {
       handleConfigAction("resetear");
@@ -227,12 +227,12 @@ function setupForms() {
   document
     .getElementById("categoriaForm")
     .addEventListener("submit", (e) =>
-      handlePostAction(e, "agregarCategoria", "statusCategoria")
+      handlePostAction(e, "agregarCategoria", "statusCategoria"),
     );
   document
     .getElementById("productoForm")
     .addEventListener("submit", (e) =>
-      handlePostAction(e, "agregarProducto", "statusProducto")
+      handlePostAction(e, "agregarProducto", "statusProducto"),
     );
 
   // Compras/Ventas
@@ -314,18 +314,14 @@ async function calcularResumenFinanciero() {
     const ganancias = totalVentas - totalCompras;
 
     // Actualizar estadísticas
-    document.getElementById(
-      "totalVentas"
-    ).textContent = `$${totalVentas.toFixed(2)}`;
-    document.getElementById(
-      "totalCompras"
-    ).textContent = `$${totalCompras.toFixed(2)}`;
-    document.getElementById(
-      "totalGanancias"
-    ).textContent = `$${ganancias.toFixed(2)}`;
-    document.getElementById(
-      "totalGastos"
-    ).textContent = `$${totalCompras.toFixed(2)}`;
+    document.getElementById("totalVentas").textContent =
+      `$${totalVentas.toFixed(2)}`;
+    document.getElementById("totalCompras").textContent =
+      `$${totalCompras.toFixed(2)}`;
+    document.getElementById("totalGanancias").textContent =
+      `$${ganancias.toFixed(2)}`;
+    document.getElementById("totalGastos").textContent =
+      `$${totalCompras.toFixed(2)}`;
 
     // Colores según ganancias
     const gananciasElement = document.getElementById("totalGanancias");
@@ -341,10 +337,10 @@ async function calcularResumenFinanciero() {
       "statusDashboard",
       "success",
       `Resumen calculado: Ventas: $${totalVentas.toFixed(
-        2
+        2,
       )} | Compras: $${totalCompras.toFixed(
-        2
-      )} | Ganancia: $${ganancias.toFixed(2)}`
+        2,
+      )} | Ganancia: $${ganancias.toFixed(2)}`,
     );
 
     return { totalVentas, totalCompras, ganancias };
@@ -352,7 +348,7 @@ async function calcularResumenFinanciero() {
     displayStatus(
       "statusDashboard",
       "error",
-      `Error al calcular resumen: ${error.message}`
+      `Error al calcular resumen: ${error.message}`,
     );
     return { totalVentas: 0, totalCompras: 0, ganancias: 0 };
   }
@@ -362,7 +358,7 @@ async function cargarDatosGraficos() {
   try {
     // Obtener datos para gráficos
     const resumenResponse = await fetch(
-      `${SCRIPT_URL}?action=getResumenDiario`
+      `${SCRIPT_URL}?action=getResumenDiario`,
     );
     const resumenData = await resumenResponse.json();
 
@@ -380,7 +376,7 @@ async function cargarDatosGraficos() {
     displayStatus(
       "statusDashboard",
       "error",
-      `Error al cargar gráficos: ${error.message}`
+      `Error al cargar gráficos: ${error.message}`,
     );
   }
 }
@@ -439,7 +435,7 @@ async function renderChartsFromRawData() {
     displayStatus(
       "statusDashboard",
       "warning",
-      "No hay datos suficientes para generar gráficos."
+      "No hay datos suficientes para generar gráficos.",
     );
   }
 }
@@ -529,7 +525,7 @@ function renderCharts(resumenData) {
           label: "Ventas Acumuladas",
           data: ventas.reduce(
             (acc, curr, i) => [...acc, (acc[i - 1] || 0) + curr],
-            []
+            [],
           ),
           borderColor: "rgba(0, 123, 255, 1)",
           backgroundColor: "rgba(0, 123, 255, 0.1)",
@@ -540,7 +536,7 @@ function renderCharts(resumenData) {
           label: "Compras Acumuladas",
           data: compras.reduce(
             (acc, curr, i) => [...acc, (acc[i - 1] || 0) + curr],
-            []
+            [],
           ),
           borderColor: "rgba(23, 162, 184, 1)",
           backgroundColor: "rgba(23, 162, 184, 0.1)",
@@ -626,7 +622,7 @@ async function handleQueryFilter(query, prefix) {
 
   try {
     const response = await fetch(
-      `${SCRIPT_URL}?action=buscarProducto&query=${encodeURIComponent(query)}`
+      `${SCRIPT_URL}?action=buscarProducto&query=${encodeURIComponent(query)}`,
     );
     const data = await response.json();
 
@@ -662,19 +658,19 @@ function updateProductDetails(product, detailDiv, prefix) {
 
   detailDiv.innerHTML = `
                 <p><b>ID:</b> ${product.id} | <b>Producto:</b> ${
-    product.nombre
-  } (Cód: ${product.código})</p>
+                  product.nombre
+                } (Cód: ${product.código})</p>
                 <p><b>Categoría:</b> ${product.categoría}</p>
                 <p><b>Stock Actual:</b> <span ${stockStyle}>${
-    product.stock
-  }</span></p>
+                  product.stock
+                }</span></p>
                 <p><b>${priceLabel}:</b> $${parseFloat(basePrice).toFixed(
-    2
-  )}</p>
+                  2,
+                )}</p>
             `;
 
   const priceInput = document.getElementById(
-    `${prefix}_precio_${isCompra ? "compra" : "venta"}`
+    `${prefix}_precio_${isCompra ? "compra" : "venta"}`,
   );
   priceInput.value = parseFloat(basePrice).toFixed(2);
 
@@ -722,7 +718,7 @@ async function handleTransactionPost(e, type) {
     displayStatus(
       statusDivId,
       "error",
-      `No hay producto seleccionado. Busque y seleccione uno.`
+      `No hay producto seleccionado. Busque y seleccione uno.`,
     );
     submitBtn.disabled = false;
     return;
@@ -733,11 +729,11 @@ async function handleTransactionPost(e, type) {
     producto_id: productoId,
     cantidad: document.getElementById(`${prefix}_cantidad`).value,
     precio: document.getElementById(
-      `${prefix}_precio_${type === "compra" ? "compra" : "venta"}`
+      `${prefix}_precio_${type === "compra" ? "compra" : "venta"}`,
     ).value,
     type: type,
     extra_data: document.getElementById(
-      `${prefix}_${type === "compra" ? "proveedor" : "cliente"}`
+      `${prefix}_${type === "compra" ? "proveedor" : "cliente"}`,
     ).value,
   };
 
@@ -776,11 +772,22 @@ async function loadInventario() {
     const data = await response.json();
 
     if (data.status === "success" && data.data && data.data.length > 0) {
+      inventarioCache = data.data; // ✅ guardar
+      inventarioCargado = true; // ✅ marcar estado
+
+      // --- render tabla ---
       displayStatus(
         "statusInventario",
         "success",
-        `Inventario cargado: ${data.data.length} productos.`
+        `Inventario cargado: ${data.data.length} productos.`,
       );
+      // Cachear productos para POS (búsqueda instantánea)
+      posProductCache = {};
+      data.data.forEach((p) => {
+        posProductCache[p.código] = p;
+        posProductCache[p.id] = p;
+      });
+
       tableBody.innerHTML = data.data
         .map((p) => {
           const stockStyle =
@@ -818,7 +825,7 @@ async function loadInventario() {
     displayStatus(
       "statusInventario",
       "error",
-      `Error al cargar inventario: ${error.message}`
+      `Error al cargar inventario: ${error.message}`,
     );
     tableBody.innerHTML =
       '<tr><td colspan="9">Error al cargar datos.</td></tr>';
@@ -836,7 +843,7 @@ async function loadSummary(type) {
 
   try {
     const response = await fetch(
-      `${SCRIPT_URL}?action=getData&sheetName=${sheetName}`
+      `${SCRIPT_URL}?action=getData&sheetName=${sheetName}`,
     );
     const data = await response.json();
 
@@ -844,7 +851,7 @@ async function loadSummary(type) {
       displayStatus(
         "statusResumen",
         "success",
-        `${data.data.length} ${sheetName} registradas.`
+        `${data.data.length} ${sheetName} registradas.`,
       );
       table.classList.remove("hidden");
 
@@ -872,14 +879,14 @@ async function loadSummary(type) {
       displayStatus(
         "statusResumen",
         "warning",
-        `No hay datos en la pestaña ${sheetName}.`
+        `No hay datos en la pestaña ${sheetName}.`,
       );
     }
   } catch (error) {
     displayStatus(
       "statusResumen",
       "error",
-      `Error al cargar resumen: ${error.message}`
+      `Error al cargar resumen: ${error.message}`,
     );
   }
 }
@@ -903,7 +910,7 @@ async function handleConfigAction(action) {
     displayStatus(
       "statusConfig",
       "error",
-      `Error de conexión: ${error.message}.`
+      `Error de conexión: ${error.message}.`,
     );
   } finally {
     setButtonState(false);
@@ -923,9 +930,188 @@ function displayStatus(elementId, type, message) {
     type === "success"
       ? "check"
       : type === "error"
-      ? "times"
-      : type === "warning"
-      ? "exclamation-triangle"
-      : "info"
+        ? "times"
+        : type === "warning"
+          ? "exclamation-triangle"
+          : "info"
   }-circle"></i> ${message}`;
+}
+
+// ================= CACHE DE PRODUCTOS =================
+let posProductCache = {};
+
+// ================= POS RÁPIDO =================
+
+const posVenta = {
+  items: [],
+  total: 0,
+};
+
+const posInput = document.getElementById("posBuscar");
+const posTabla = document.getElementById("posTabla");
+const posTotal = document.getElementById("posTotal");
+
+if (posInput) {
+  posInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      const query = posInput.value.trim();
+      if (query !== "") {
+        posBuscarProducto(query);
+      }
+      posInput.value = "";
+    }
+  });
+}
+
+function posBuscarProducto(query) {
+  const producto = posProductCache[query];
+
+  if (!producto) {
+    alert("Producto no encontrado");
+    return;
+  }
+
+  posAgregarProducto(producto);
+}
+
+function posAgregarProducto(producto) {
+  const item = posVenta.items.find((i) => i.producto_id === producto.id);
+
+  const precios = {
+    precio_venta: Number(producto.precio_venta) || 0,
+    precio_venta_2: Number(producto.precio_venta_2) || 0,
+    precio_venta_3: Number(producto.precio_venta_3) || 0,
+    precio_venta_4: Number(producto.precio_venta_4) || 0,
+  };
+
+  if (item) {
+    item.cantidad += 1;
+  } else {
+    posVenta.items.push({
+      producto_id: producto.id,
+      nombre: producto.nombre,
+      codigo: producto.código,
+      cantidad: 1,
+      precio_tipo: "precio_venta",
+      precios,
+      precio_unitario: precios.precio_venta,
+      subtotal: 0,
+    });
+  }
+
+  posRecalcular();
+  posRender();
+}
+
+function posRecalcular() {
+  posVenta.items.forEach((item) => {
+    item.precio_unitario = item.precios[item.precio_tipo];
+    item.subtotal = item.precio_unitario * item.cantidad;
+  });
+
+  posVenta.total = posVenta.items.reduce((sum, item) => sum + item.subtotal, 0);
+}
+
+function posRender() {
+  posTabla.innerHTML = "";
+
+  posVenta.items.forEach((item, index) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${item.nombre}</td>
+      <td>${item.codigo}</td>
+
+      <td>
+        <select onchange="posCambiarPrecio(${index}, this.value)">
+          ${Object.entries(item.precios)
+            .filter(([, v]) => v > 0)
+            .map(
+              ([key, value]) =>
+                `<option value="${key}" ${
+                  item.precio_tipo === key ? "selected" : ""
+                }>$${value.toFixed(2)}</option>`,
+            )
+            .join("")}
+        </select>
+      </td>
+
+
+      <td>
+        <input
+          type="number"
+          min="0"
+          value="${item.cantidad}"
+          onchange="posActualizarCantidad(${index}, this.value)"
+          style="width:60px"
+        />
+      </td>
+
+
+      <td>$${item.subtotal.toFixed(2)}</td>
+
+      <td>
+        <button
+          class="btn danger-btn"
+          onclick="posEliminarConfirmado(${index})"
+        >
+          Eliminar
+        </button>
+
+      </td>
+    `;
+    posTabla.appendChild(tr);
+  });
+
+  posTotal.textContent = posVenta.total.toFixed(2);
+}
+
+function posEliminar(index) {
+  posVenta.items.splice(index, 1);
+  posRecalcular();
+  posRender();
+}
+
+function posCambiarPrecio(index, tipo) {
+  const item = posVenta.items[index];
+  item.precio_tipo = tipo;
+
+  posRecalcular();
+  posRender();
+}
+
+function posActualizarCantidad(index, value) {
+  const cantidad = Number(value);
+
+  if (cantidad === 0) {
+    if (confirm("¿Deseas eliminar este producto del POS?")) {
+      posEliminar(index);
+      return;
+    } else {
+      posVenta.items[index].cantidad = 1;
+    }
+  } else if (cantidad > 0) {
+    posVenta.items[index].cantidad = cantidad;
+  }
+
+  posRecalcular();
+  posRender();
+}
+
+function posEliminarConfirmado(index) {
+  if (confirm("¿Seguro que deseas eliminar este producto?")) {
+    posEliminar(index);
+  }
+}
+
+async function prepararPOS() {
+  if (!inventarioCargado) {
+    await loadInventario();
+  }
+
+  posVenta.items = [];
+  posVenta.total = 0;
+  posRender();
+
+  const input = document.getElementById("posBuscar");
+  if (input) input.focus();
 }
