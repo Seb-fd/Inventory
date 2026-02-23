@@ -9,6 +9,7 @@ const HOJA_PRODUCTOS = "Productos";
 const HOJA_COMPRAS = "Compras";
 const HOJA_VENTAS = "Ventas";
 const HOJA_RESUMEN = "resumen_diario";
+const HOJA_VENTAS_DETALLE = "Ventas_Detalle";
 
 // Encabezados
 const CATEGORIAS_HEADERS = ["id", "nombre"];
@@ -34,20 +35,31 @@ const COMPRAS_HEADERS = [
   "fecha",
   "proveedor",
 ];
-const VENTAS_HEADERS = [
-  "id",
-  "producto_id",
-  "cantidad",
-  "precio_venta",
-  "fecha",
-  "cliente",
-];
+
 const RESUMEN_HEADERS = [
   "fecha",
   "total_ventas",
   "total_compras",
   "ganancia",
   "productos_vendidos",
+];
+
+const VENTAS_POS_HEADERS = [
+  "id_venta",
+  "fecha",
+  "cliente",
+  "total",
+  "monto_recibido",
+  "cambio",
+];
+
+const VENTAS_DETALLE_HEADERS = [
+  "id_detalle",
+  "id_venta",
+  "producto_id",
+  "cantidad",
+  "precio_unitario",
+  "subtotal",
 ];
 
 // --- FUNCIÓN CENTRAL PARA ACCEDER A LA HOJA ---
@@ -100,7 +112,7 @@ function doGet(e) {
   }
 
   return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(
-    ContentService.MimeType.JSON
+    ContentService.MimeType.JSON,
   );
 }
 
@@ -114,7 +126,7 @@ function doPost(e) {
         JSON.stringify({
           status: "error",
           message: "No se recibieron datos en la solicitud POST.",
-        })
+        }),
       ).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -128,19 +140,21 @@ function doPost(e) {
       result = agregarProducto(requestData);
     } else if (action === "registrarTransaccion") {
       result = registrarTransaccion(requestData);
+    } else if (action === "registrarVentaPOS") {
+      result = registrarVentaPOS(requestData);
     } else {
       result = { status: "error", message: "Acción POST no reconocida." };
     }
 
     return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(
-      ContentService.MimeType.JSON
+      ContentService.MimeType.JSON,
     );
   } catch (error) {
     return ContentService.createTextOutput(
       JSON.stringify({
         status: "error",
         message: `Error al procesar la solicitud POST: ${error.message}`,
-      })
+      }),
     ).setMimeType(ContentService.MimeType.JSON);
   }
 }
@@ -307,7 +321,7 @@ function registrarTransaccion(data) {
   // 1. Validar producto y obtener fila actual
   const { rowData, rowIndex } = findProductRow(
     sheetProductos,
-    data.producto_id
+    data.producto_id,
   );
 
   if (rowIndex === -1) {
@@ -397,6 +411,209 @@ function registrarTransaccion(data) {
       status: "error",
       message: `Error al actualizar inventario: ${e.message}`,
     };
+  }
+}
+
+function registrarVentaPOS(data) {
+  const ss = getSpreadsheet();
+  const sheetVentas = ss.getSheetByName(HOJA_VENTAS);
+  const sheetDetalle = ss.getSheetByName(HOJA_VENTAS_DETALLE);
+  const sheetProductos = ss.getSheetByName(HOJA_PRODUCTOS);
+
+  if (!sheetVentas || !sheetDetalle || !sheetProductos) {
+    return {
+      status: "error",
+      message: "Una o más hojas necesarias no existen.",
+    };
+  }
+
+  const items = data.items;
+  const cliente = data.cliente || "Mostrador";
+  const montoRecibido = parseFloat(data.montoRecibido) || 0;
+
+  if (!items || items.length === 0) {
+    return { status: "warning", message: "No hay productos en la venta." };
+  }
+
+  // 1️⃣ Validar stock completo antes de modificar nada
+  const productosData = sheetProductos.getDataRange().getValues();
+  const headers = productosData[0];
+
+  const idCol = headers.indexOf("id");
+  const stockCol = headers.indexOf("stock");
+
+  let totalVenta = 0;
+  let updatesStock = [];
+
+  for (let item of items) {
+    const productoId = item.producto_id;
+    const cantidad = parseInt(item.cantidad);
+    const precio = parseFloat(item.precio);
+
+    const rowIndex = productosData.findIndex(
+      (row, i) => i > 0 && String(row[idCol]) === String(productoId),
+    );
+
+    if (rowIndex === -1) {
+      return {
+        status: "error",
+        message: `Producto ID ${productoId} no encontrado.`,
+      };
+    }
+
+    const stockActual = parseFloat(productosData[rowIndex][stockCol]) || 0;
+
+    if (stockActual < cantidad) {
+      return {
+        status: "warning",
+        message: `Stock insuficiente para producto ID ${productoId}. Disponible: ${stockActual}`,
+      };
+    }
+
+    const nuevoStock = stockActual - cantidad;
+    updatesStock.push({ rowIndex, nuevoStock });
+
+    totalVenta += cantidad * precio;
+  }
+
+  const cambio = montoRecibido - totalVenta;
+
+  if (montoRecibido < totalVenta) {
+    return {
+      status: "warning",
+      message: "El monto recibido es menor al total de la venta.",
+    };
+  }
+
+  // 2️⃣ Registrar encabezado de venta
+  const ventaId = generateUniqueAppId();
+  const fecha = new Date();
+
+  try {
+    sheetVentas.appendRow([
+      ventaId,
+      fecha,
+      cliente,
+      totalVenta,
+      montoRecibido,
+      cambio,
+    ]);
+  } catch (e) {
+    return { status: "error", message: "Error al registrar venta." };
+  }
+
+  // 3️⃣ Registrar detalle
+  try {
+    for (let item of items) {
+      const detalleId = generateUniqueAppId();
+      const subtotal = item.cantidad * item.precio;
+
+      sheetDetalle.appendRow([
+        detalleId,
+        ventaId,
+        item.producto_id,
+        item.cantidad,
+        item.precio,
+        subtotal,
+      ]);
+    }
+  } catch (e) {
+    sheetVentas.deleteRow(sheetVentas.getLastRow());
+    return { status: "error", message: "Error al registrar detalle." };
+  }
+
+  // 4️⃣ Actualizar stocks
+  try {
+    for (let update of updatesStock) {
+      sheetProductos
+        .getRange(update.rowIndex + 1, stockCol + 1)
+        .setValue(update.nuevoStock);
+    }
+
+    actualizarResumenDiario(totalVenta, items);
+  } catch (e) {
+    return { status: "error", message: "Error al actualizar stock." };
+  }
+
+  return {
+    status: "success",
+    message: "Venta registrada correctamente.",
+    total: totalVenta,
+    cambio: cambio,
+    ventaId: ventaId,
+  };
+}
+
+function actualizarResumenDiario(totalVenta, items) {
+  const ss = getSpreadsheet();
+  const sheetResumen = ss.getSheetByName(HOJA_RESUMEN);
+  const sheetProductos = ss.getSheetByName(HOJA_PRODUCTOS);
+
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+
+  const data = sheetResumen.getDataRange().getValues();
+  const headers = data[0];
+
+  const fechaCol = headers.indexOf("fecha");
+  const ventasCol = headers.indexOf("total_ventas");
+  const comprasCol = headers.indexOf("total_compras");
+  const gananciaCol = headers.indexOf("ganancia");
+  const productosVendidosCol = headers.indexOf("productos_vendidos");
+
+  let rowIndex = -1;
+
+  // Buscar si ya existe fila para hoy
+  for (let i = 1; i < data.length; i++) {
+    let fechaFila = new Date(data[i][fechaCol]);
+    fechaFila.setHours(0, 0, 0, 0);
+    if (fechaFila.getTime() === hoy.getTime()) {
+      rowIndex = i;
+      break;
+    }
+  }
+
+  // Calcular ganancia real
+  const productosData = sheetProductos.getDataRange().getValues();
+  const idCol = productosData[0].indexOf("id");
+  const precioCompraCol = productosData[0].indexOf("precio_compra");
+
+  let gananciaTotal = 0;
+  let totalProductosVendidos = 0;
+
+  for (let item of items) {
+    const productoRow = productosData.find(
+      (r) => String(r[idCol]) === String(item.producto_id),
+    );
+    if (productoRow) {
+      const costo = parseFloat(productoRow[precioCompraCol]) || 0;
+      gananciaTotal += (item.precio - costo) * item.cantidad;
+      totalProductosVendidos += item.cantidad;
+    }
+  }
+
+  if (rowIndex === -1) {
+    // Crear nueva fila
+    sheetResumen.appendRow([
+      hoy,
+      totalVenta,
+      0,
+      gananciaTotal,
+      totalProductosVendidos,
+    ]);
+  } else {
+    // Actualizar existente
+    sheetResumen
+      .getRange(rowIndex + 1, ventasCol + 1)
+      .setValue(data[rowIndex][ventasCol] + totalVenta);
+
+    sheetResumen
+      .getRange(rowIndex + 1, gananciaCol + 1)
+      .setValue(data[rowIndex][gananciaCol] + gananciaTotal);
+
+    sheetResumen
+      .getRange(rowIndex + 1, productosVendidosCol + 1)
+      .setValue(data[rowIndex][productosVendidosCol] + totalProductosVendidos);
   }
 }
 
@@ -520,7 +737,8 @@ function iniciarBaseDeDatos() {
   msg.push(createOrResetSheet(ss, HOJA_CATEGORIAS, CATEGORIAS_HEADERS));
   msg.push(createOrResetSheet(ss, HOJA_PRODUCTOS, PRODUCTOS_HEADERS));
   msg.push(createOrResetSheet(ss, HOJA_COMPRAS, COMPRAS_HEADERS));
-  msg.push(createOrResetSheet(ss, HOJA_VENTAS, VENTAS_HEADERS));
+  msg.push(createOrResetSheet(ss, HOJA_VENTAS, VENTAS_POS_HEADERS));
+  msg.push(createOrResetSheet(ss, HOJA_VENTAS_DETALLE, VENTAS_DETALLE_HEADERS));
   msg.push(createOrResetSheet(ss, HOJA_RESUMEN, RESUMEN_HEADERS));
 
   return {
@@ -533,20 +751,18 @@ function resetearBaseDeDatos() {
   const ss = getSpreadsheet();
   let msg = [];
 
-  // Se eliminan todas las pestañas excepto la primera ("Hoja 1")
   ss.getSheets().forEach((sheet) => {
-    const sheetName = sheet.getName();
-    if (sheetName !== "Hoja 1") {
+    if (sheet.getName() !== "Hoja 1") {
       ss.deleteSheet(sheet);
-      msg.push(`Pestaña '${sheetName}' eliminada.`);
+      msg.push(`Pestaña '${sheet.getName()}' eliminada.`);
     }
   });
 
-  // Se recrean las pestañas
   msg.push(createOrResetSheet(ss, HOJA_CATEGORIAS, CATEGORIAS_HEADERS));
   msg.push(createOrResetSheet(ss, HOJA_PRODUCTOS, PRODUCTOS_HEADERS));
   msg.push(createOrResetSheet(ss, HOJA_COMPRAS, COMPRAS_HEADERS));
-  msg.push(createOrResetSheet(ss, HOJA_VENTAS, VENTAS_HEADERS));
+  msg.push(createOrResetSheet(ss, HOJA_VENTAS, VENTAS_POS_HEADERS));
+  msg.push(createOrResetSheet(ss, HOJA_VENTAS_DETALLE, VENTAS_DETALLE_HEADERS));
   msg.push(createOrResetSheet(ss, HOJA_RESUMEN, RESUMEN_HEADERS));
 
   return {

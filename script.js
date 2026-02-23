@@ -236,19 +236,29 @@ function setupForms() {
     );
 
   // Compras/Ventas
-  document
-    .getElementById("co_query")
-    .addEventListener("input", (e) => handleQueryFilter(e.target.value, "co"));
-  document
-    .getElementById("v_query")
-    .addEventListener("input", (e) => handleQueryFilter(e.target.value, "v"));
+  const coQuery = document.getElementById("co_query");
+  if (coQuery) {
+    coQuery.addEventListener("input", (e) =>
+      handleQueryFilter(e.target.value, "co"),
+    );
+  }
 
   document
     .getElementById("compraForm")
     .addEventListener("submit", (e) => handleTransactionPost(e, "compra"));
-  document
-    .getElementById("ventaForm")
-    .addEventListener("submit", (e) => handleTransactionPost(e, "venta"));
+  const vQuery = document.getElementById("v_query");
+  if (vQuery) {
+    vQuery.addEventListener("input", (e) =>
+      handleQueryFilter(e.target.value, "v"),
+    );
+  }
+
+  const ventaForm = document.getElementById("ventaForm");
+  if (ventaForm) {
+    ventaForm.addEventListener("submit", (e) =>
+      handleTransactionPost(e, "venta"),
+    );
+  }
 
   // Resúmenes
   document
@@ -952,13 +962,16 @@ const posTabla = document.getElementById("posTabla");
 const posTotal = document.getElementById("posTotal");
 
 if (posInput) {
-  posInput.addEventListener("keydown", (e) => {
+  posInput.addEventListener("keyup", (e) => {
     if (e.key === "Enter") {
       const query = posInput.value.trim();
       if (query !== "") {
         posBuscarProducto(query);
       }
       posInput.value = "";
+
+      // 🔥 volver a enfocar automáticamente
+      posInput.focus();
     }
   });
 }
@@ -1112,6 +1125,92 @@ async function prepararPOS() {
   posVenta.total = 0;
   posRender();
 
-  const input = document.getElementById("posBuscar");
-  if (input) input.focus();
+  // 🔥 Forzar foco después de render y activación de sección
+  setTimeout(() => {
+    const input = document.getElementById("posBuscar");
+    if (input) {
+      input.focus();
+      input.select(); // opcional: selecciona texto si lo hubiera
+    }
+  }, 150);
+}
+
+async function posConfirmarVenta() {
+  if (posVenta.items.length === 0) {
+    alert("No hay productos en la venta.");
+    return;
+  }
+
+  const montoRecibidoInput = document.getElementById("posMontoRecibido");
+  const clienteInput = document.getElementById("posCliente");
+
+  const montoRecibido = Number(montoRecibidoInput.value);
+
+  if (!montoRecibido || montoRecibido < posVenta.total) {
+    alert("Monto recibido insuficiente.");
+    return;
+  }
+
+  const ventaData = {
+    action: "registrarVentaPOS",
+    cliente: clienteInput?.value || "Mostrador",
+    montoRecibido: montoRecibido,
+    items: posVenta.items.map((item) => ({
+      producto_id: item.producto_id,
+      cantidad: item.cantidad,
+      precio: item.precio_unitario,
+    })),
+  };
+
+  try {
+    const response = await fetch(SCRIPT_URL, {
+      method: "POST",
+      body: JSON.stringify(ventaData),
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+    });
+
+    const data = await response.json();
+    if (data.status === "success") {
+      // Guardar valores antes de limpiar
+      const totalVenta = data.total;
+      const cambioVenta = data.cambio;
+
+      // Limpiar estado del POS
+      posVenta.items = [];
+      posVenta.total = 0;
+      posRender();
+
+      montoRecibidoInput.value = "";
+      if (clienteInput) clienteInput.value = "";
+
+      inventarioCargado = false;
+
+      // Mostrar confirmación
+      alert(
+        `Venta realizada.\nTotal: $${totalVenta.toFixed(2)}\nCambio: $${cambioVenta.toFixed(2)}`,
+      );
+
+      // Volver a enfocar el input para el siguiente cliente
+      const input = document.getElementById("posBuscar");
+      if (input) input.focus();
+    } else {
+      alert(data.message);
+    }
+  } catch (error) {
+    alert("Error al registrar venta: " + error.message);
+  }
+}
+
+const posMontoInput = document.getElementById("posMontoRecibido");
+const posCambio = document.getElementById("posCambio");
+
+if (posMontoInput) {
+  posMontoInput.addEventListener("input", () => {
+    const recibido = Number(posMontoInput.value);
+    const cambio = recibido - posVenta.total;
+
+    if (posCambio) {
+      posCambio.textContent = cambio >= 0 ? cambio.toFixed(2) : "0.00";
+    }
+  });
 }
