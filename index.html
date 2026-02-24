@@ -366,9 +366,32 @@
                 <tbody id="posTabla"></tbody>
               </table>
             </div>
+            <div id="posTotalesContainer">
 
-            <div class="pos-total">Total: $<span id="posTotal">0.00</span></div>
+              <div id="posSubtotalContainer">
+                Subtotal: $<span id="posSubtotal">0.00</span>
+              </div>
+
+              <div id="posComisionDetalleContainer" style="display:none;">
+                Comisión (<span id="posPorcentaje">0%</span>): 
+                $<span id="posComisionDetalle">0.00</span>
+              </div>
+
+              <div id="posTotalFinalContainer" style="font-size: 24px; font-weight: bold; margin-top: 10px;">
+                Total: $<span id="posTotal">0.00</span>
+              </div>
+
+            </div>
           </div>
+
+          <label for="posMetodoPago">Método de pago:</label>
+          <select id="posMetodoPago">
+            <option value="efectivo">Efectivo</option>
+            <option value="tarjeta">Tarjeta</option>
+            <option value="transferencia">Transferencia (Nequi)</option>
+            <option value="sistecredito">Sistecrédito</option>
+            <option value="addi">Addi</option>
+          </select>
 
           <div class="pos-payment">
             <label>Monto entregado</label>
@@ -380,7 +403,11 @@
               placeholder="0.00"
             />
 
-            <div class="pos-change">
+            <div id="posComisionContainer" style="display: none">
+              Comisión: $<span id="posComision">0.00</span>
+            </div>
+
+            <div id="posCambioContainer" class="pos-change">
               Cambio: <strong>$<span id="posCambio">0.00</span></strong>
             </div>
           </div>

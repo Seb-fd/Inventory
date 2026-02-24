@@ -49,6 +49,8 @@ const VENTAS_POS_HEADERS = [
   "fecha",
   "cliente",
   "total",
+  "metodo_pago",
+  "comision",
   "monto_recibido",
   "cambio",
 ];
@@ -419,6 +421,8 @@ function registrarVentaPOS(data) {
   const sheetVentas = ss.getSheetByName(HOJA_VENTAS);
   const sheetDetalle = ss.getSheetByName(HOJA_VENTAS_DETALLE);
   const sheetProductos = ss.getSheetByName(HOJA_PRODUCTOS);
+  const metodoPago = data.metodoPago || "efectivo";
+  const comision = Number(data.comision) || 0;
 
   if (!sheetVentas || !sheetDetalle || !sheetProductos) {
     return {
@@ -429,7 +433,7 @@ function registrarVentaPOS(data) {
 
   const items = data.items;
   const cliente = data.cliente || "Mostrador";
-  const montoRecibido = parseFloat(data.montoRecibido) || 0;
+  let montoRecibido = parseFloat(data.montoRecibido) || 0;
 
   if (!items || items.length === 0) {
     return { status: "warning", message: "No hay productos en la venta." };
@@ -476,13 +480,21 @@ function registrarVentaPOS(data) {
     totalVenta += cantidad * precio;
   }
 
-  const cambio = montoRecibido - totalVenta;
+  let cambio = 0;
 
-  if (montoRecibido < totalVenta) {
-    return {
-      status: "warning",
-      message: "El monto recibido es menor al total de la venta.",
-    };
+  if (metodoPago === "efectivo") {
+    cambio = montoRecibido - totalVenta;
+
+    if (montoRecibido < totalVenta) {
+      return {
+        status: "warning",
+        message: "El monto recibido es menor al total de la venta.",
+      };
+    }
+  } else {
+    // Para tarjeta, transferencia, crédito no hay cambio
+    montoRecibido = totalVenta;
+    cambio = 0;
   }
 
   // 2️⃣ Registrar encabezado de venta
@@ -495,6 +507,8 @@ function registrarVentaPOS(data) {
       fecha,
       cliente,
       totalVenta,
+      metodoPago,
+      comision,
       montoRecibido,
       cambio,
     ]);
@@ -530,7 +544,7 @@ function registrarVentaPOS(data) {
         .setValue(update.nuevoStock);
     }
 
-    actualizarResumenDiario(totalVenta, items);
+    actualizarResumenDiario(totalVenta, items, comision);
   } catch (e) {
     return { status: "error", message: "Error al actualizar stock." };
   }
@@ -544,7 +558,7 @@ function registrarVentaPOS(data) {
   };
 }
 
-function actualizarResumenDiario(totalVenta, items) {
+function actualizarResumenDiario(totalVenta, items, comision) {
   const ss = getSpreadsheet();
   const sheetResumen = ss.getSheetByName(HOJA_RESUMEN);
   const sheetProductos = ss.getSheetByName(HOJA_PRODUCTOS);
@@ -591,6 +605,8 @@ function actualizarResumenDiario(totalVenta, items) {
       totalProductosVendidos += item.cantidad;
     }
   }
+
+  gananciaTotal = gananciaTotal - (parseFloat(comision) || 0);
 
   if (rowIndex === -1) {
     // Crear nueva fila

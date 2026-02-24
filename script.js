@@ -1023,6 +1023,7 @@ function posRecalcular() {
   });
 
   posVenta.total = posVenta.items.reduce((sum, item) => sum + item.subtotal, 0);
+  actualizarComision();
 }
 
 function posRender() {
@@ -1074,8 +1075,6 @@ function posRender() {
     `;
     posTabla.appendChild(tr);
   });
-
-  posTotal.textContent = posVenta.total.toFixed(2);
 }
 
 function posEliminar(index) {
@@ -1133,6 +1132,7 @@ async function prepararPOS() {
       input.select(); // opcional: selecciona texto si lo hubiera
     }
   }, 150);
+  document.getElementById("posMetodoPago").dispatchEvent(new Event("change"));
 }
 
 async function posConfirmarVenta() {
@@ -1144,12 +1144,25 @@ async function posConfirmarVenta() {
   const montoRecibidoInput = document.getElementById("posMontoRecibido");
   const clienteInput = document.getElementById("posCliente");
 
-  const montoRecibido = Number(montoRecibidoInput.value);
+  // ✅ DECLARAR PRIMERO metodoPago
+  const metodoPago = document.getElementById("posMetodoPago").value;
 
-  if (!montoRecibido || montoRecibido < posVenta.total) {
-    alert("Monto recibido insuficiente.");
-    return;
+  let montoRecibido = Number(montoRecibidoInput.value);
+
+  // ✅ Si no es efectivo, forzar monto igual al total
+  if (metodoPago !== "efectivo") {
+    montoRecibido = posVenta.total;
   }
+
+  // ✅ Validación solo para efectivo
+  if (metodoPago === "efectivo") {
+    if (!montoRecibido || montoRecibido < posVenta.total) {
+      alert("Monto recibido insuficiente.");
+      return;
+    }
+  }
+
+  const comision = calcularComision(posVenta.total, metodoPago);
 
   const ventaData = {
     action: "registrarVentaPOS",
@@ -1160,6 +1173,8 @@ async function posConfirmarVenta() {
       cantidad: item.cantidad,
       precio: item.precio_unitario,
     })),
+    metodoPago: metodoPago,
+    comision: comision,
   };
 
   try {
@@ -1182,6 +1197,8 @@ async function posConfirmarVenta() {
 
       montoRecibidoInput.value = "";
       if (clienteInput) clienteInput.value = "";
+
+      actualizarComision();
 
       inventarioCargado = false;
 
@@ -1206,6 +1223,10 @@ const posCambio = document.getElementById("posCambio");
 
 if (posMontoInput) {
   posMontoInput.addEventListener("input", () => {
+    const metodo = document.getElementById("posMetodoPago").value;
+
+    if (metodo !== "efectivo") return;
+
     const recibido = Number(posMontoInput.value);
     const cambio = recibido - posVenta.total;
 
@@ -1213,4 +1234,83 @@ if (posMontoInput) {
       posCambio.textContent = cambio >= 0 ? cambio.toFixed(2) : "0.00";
     }
   });
+}
+
+function calcularComision(total, metodo) {
+  const porcentaje = obtenerPorcentajeMetodo(metodo);
+  return total * (porcentaje / 100);
+}
+
+function obtenerPorcentajeMetodo(metodo) {
+  switch (metodo) {
+    case "tarjeta":
+      return 5;
+    case "sistecredito":
+      return 4;
+    case "addi":
+      return 6.5;
+    default:
+      return 0;
+  }
+}
+
+const metodoPagoSelect = document.getElementById("posMetodoPago");
+const comisionContainer = document.getElementById("posComisionContainer");
+const comisionSpan = document.getElementById("posComision");
+const montoInput = document.getElementById("posMontoRecibido");
+const pagoContainer = document.querySelector(".pos-payment");
+
+if (metodoPagoSelect) {
+  metodoPagoSelect.addEventListener("change", () => {
+    const metodo = metodoPagoSelect.value;
+
+    if (metodo === "efectivo") {
+      pagoContainer.style.display = "block";
+      montoInput.disabled = false;
+    } else {
+      pagoContainer.style.display = "none";
+      montoInput.disabled = true;
+      montoInput.value = "";
+
+      // Reiniciar cambio a 0
+      const posCambio = document.getElementById("posCambio");
+      if (posCambio) posCambio.textContent = "0.00";
+    }
+
+    actualizarComision();
+  });
+}
+
+function actualizarComision() {
+  const metodo = document.getElementById("posMetodoPago").value;
+  const subtotal = posVenta.total;
+
+  const porcentaje = obtenerPorcentajeMetodo(metodo);
+  const comision = calcularComision(subtotal, metodo);
+  const totalFinal = subtotal + comision;
+
+  const subtotalSpan = document.getElementById("posSubtotal");
+  const comisionContainer = document.getElementById(
+    "posComisionDetalleContainer",
+  );
+  const comisionSpan = document.getElementById("posComisionDetalle");
+  const porcentajeSpan = document.getElementById("posPorcentaje");
+  const totalSpan = document.getElementById("posTotal");
+
+  // 🔹 Siempre actualizar subtotal
+  subtotalSpan.textContent = subtotal.toFixed(2);
+
+  if (porcentaje > 0) {
+    comisionContainer.style.display = "block";
+    comisionSpan.textContent = comision.toFixed(2);
+    porcentajeSpan.textContent = porcentaje + "%";
+
+    // 🔥 ESTE ES EL TOTAL REAL CON COMISIÓN
+    totalSpan.textContent = totalFinal.toFixed(2);
+  } else {
+    comisionContainer.style.display = "none";
+
+    // 🔥 SI ES EFECTIVO, EL TOTAL ES EL SUBTOTAL
+    totalSpan.textContent = subtotal.toFixed(2);
+  }
 }
