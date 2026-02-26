@@ -286,9 +286,7 @@
 
         <!-- Sección 4: Compras -->
         <section id="compras" class="content-section">
-          <h2>
-            <i class="fas fa-truck-loading"></i> Registro de Compras
-          </h2>
+          <h2><i class="fas fa-truck-loading"></i> Registro de Compras</h2>
           <form id="compraForm" class="form-grid">
             <div class="form-group">
               <label for="co_query"
@@ -313,7 +311,7 @@
                 class="money-input"
                 required
                 placeholder="0"
-               />
+              />
             </div>
             <div class="form-group">
               <label for="co_proveedor">Proveedor (Opcional):</label>
@@ -340,9 +338,7 @@
 
         <!-- Sección 5: Ventas -->
         <section id="ventas" class="content-section">
-          <h2>
-            <i class="fas fa-cash-register"></i> Registro de Ventas
-          </h2>
+          <h2><i class="fas fa-cash-register"></i> Registro de Ventas</h2>
           <!-- POS RÁPIDO -->
           <div class="pos-box">
             <h3>Buscar Producto (ID, Código o Nombre):</h3>
@@ -370,20 +366,23 @@
               </table>
             </div>
             <div id="posTotalesContainer">
-
               <div id="posSubtotalContainer">
                 Subtotal: $<span id="posSubtotal">0</span>
               </div>
 
-              <div id="posComisionDetalleContainer" style="display:none;">
-                Comisión (<span id="posPorcentaje">0%</span>): 
-                $<span id="posComisionDetalle">0</span>
+              <div id="posComisionDetalleContainer" style="display: none">
+                Comisión (<span id="posPorcentaje">0%</span>): $<span
+                  id="posComisionDetalle"
+                  >0</span
+                >
               </div>
 
-              <div id="posTotalFinalContainer" style="font-size: 24px; font-weight: bold; margin-top: 10px;">
+              <div
+                id="posTotalFinalContainer"
+                style="font-size: 24px; font-weight: bold; margin-top: 10px"
+              >
                 Total: $<span id="posTotal">0</span>
               </div>
-
             </div>
           </div>
 

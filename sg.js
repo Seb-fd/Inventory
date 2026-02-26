@@ -59,9 +59,12 @@ const VENTAS_DETALLE_HEADERS = [
   "id_detalle",
   "id_venta",
   "producto_id",
+  "nombre_producto",
+  "codigo_producto",
   "cantidad",
   "precio_unitario",
   "subtotal",
+  "metodo_pago",
 ];
 
 // --- FUNCIÓN CENTRAL PARA ACCEDER A LA HOJA ---
@@ -522,13 +525,24 @@ function registrarVentaPOS(data) {
       const detalleId = generateUniqueAppId();
       const subtotal = item.cantidad * item.precio;
 
+      // 🔎 Buscar nombre y código del producto
+      const productoRow = productosData.find(
+        (r, i) => i > 0 && String(r[idCol]) === String(item.producto_id),
+      );
+
+      const nombreProducto = productoRow ? productoRow[1] : "";
+      const codigoProducto = productoRow ? productoRow[2] : "";
+
       sheetDetalle.appendRow([
         detalleId,
         ventaId,
         item.producto_id,
+        nombreProducto,
+        codigoProducto,
         item.cantidad,
         item.precio,
         subtotal,
+        metodoPago,
       ]);
     }
   } catch (e) {
@@ -730,20 +744,18 @@ function findProductRow(sheetProductos, productoId) {
 // FUNCIONES DE CONFIGURACIÓN DE BASE DE DATOS
 // ----------------------------------------------------------------------
 function createOrResetSheet(ss, name, headers) {
-  let sheet = ss.getSheetByName(name);
-  let action = "verificada";
+  const existingSheet = ss.getSheetByName(name);
 
-  if (!sheet) {
-    sheet = ss.insertSheet(name);
-    action = "creada";
+  if (existingSheet) {
+    ss.deleteSheet(existingSheet);
   }
 
-  // Limpiar contenido y establecer encabezados
-  sheet.clearContents();
+  const sheet = ss.insertSheet(name);
+
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   sheet.setFrozenRows(1);
 
-  return `Pestaña '${name}' ${action}.`;
+  return `Pestaña '${name}' creada o reiniciada correctamente.`;
 }
 
 function iniciarBaseDeDatos() {
