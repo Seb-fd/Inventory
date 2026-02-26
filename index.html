@@ -357,6 +357,7 @@
                     <th>Código</th>
                     <th>Precio</th>
                     <th>Cant.</th>
+                    <th>Desc %</th>
                     <th>Subtotal</th>
                     <th>Acciones</th>
                   </tr>
@@ -368,6 +369,19 @@
             <div id="posTotalesContainer">
               <div id="posSubtotalContainer">
                 Subtotal: $<span id="posSubtotal">0</span>
+              </div>
+
+              <div style="margin-top:10px;">
+                Descuento global:
+                <select id="posDescuentoGlobal">
+                  <option value="0">0%</option>
+                  <option value="5">5%</option>
+                  <option value="10">10%</option>
+                  <option value="15">15%</option>
+                  <option value="20">20%</option>
+                  <option value="25">25%</option>
+                  <option value="30">30%</option>
+                </select>
               </div>
 
               <div id="posComisionDetalleContainer" style="display: none">

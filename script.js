@@ -306,9 +306,7 @@ async function calcularResumenFinanciero() {
     // Calcular total de ventas
     if (ventasData.status === "success" && ventasData.data) {
       totalVentas = ventasData.data.reduce((sum, venta) => {
-        return (
-          sum + parseFloat(venta.cantidad) * parseFloat(venta.precio_venta)
-        );
+        return sum + Number(venta.total_final || 0);
       }, 0);
     }
 
@@ -404,8 +402,7 @@ async function renderChartsFromRawData() {
     if (ventasData.status === "success" && ventasData.data) {
       ventasData.data.forEach((venta) => {
         const fecha = new Date(venta.fecha).toLocaleDateString();
-        const monto =
-          parseFloat(venta.cantidad) * parseFloat(venta.precio_venta);
+        const monto = Number(venta.total_final || 0);
         ventasPorFecha[fecha] = (ventasPorFecha[fecha] || 0) + monto;
       });
     }
@@ -957,7 +954,9 @@ let posProductCache = {};
 
 const posVenta = {
   items: [],
-  total: 0,
+  subtotal: 0,
+  descuento_global_pct: 0,
+  total_con_descuento: 0,
 };
 
 const posInput = document.getElementById("posBuscar");
@@ -1011,7 +1010,9 @@ function posAgregarProducto(producto) {
       precio_tipo: "precio_venta",
       precios,
       precio_unitario: precios.precio_venta,
-      subtotal: 0,
+      descuento_pct: 0,
+      subtotal_original: 0,
+      subtotal_final: 0,
     });
   }
 
@@ -1020,12 +1021,27 @@ function posAgregarProducto(producto) {
 }
 
 function posRecalcular() {
+  let subtotal = 0;
+
   posVenta.items.forEach((item) => {
     item.precio_unitario = item.precios[item.precio_tipo];
-    item.subtotal = item.precio_unitario * item.cantidad;
+
+    item.subtotal_original = item.precio_unitario * item.cantidad;
+
+    const descuentoItem = item.subtotal_original * (item.descuento_pct / 100);
+
+    item.subtotal_final = item.subtotal_original - descuentoItem;
+
+    subtotal += item.subtotal_final;
   });
 
-  posVenta.total = posVenta.items.reduce((sum, item) => sum + item.subtotal, 0);
+  posVenta.subtotal = subtotal;
+
+  // 🔥 Descuento global
+  const descuentoGlobal = subtotal * (posVenta.descuento_global_pct / 100);
+
+  posVenta.total_con_descuento = subtotal - descuentoGlobal;
+
   actualizarComision();
 }
 
@@ -1063,8 +1079,21 @@ function posRender() {
         />
       </td>
 
+      <td>
+        <select onchange="posCambiarDescuento(${index}, this.value)">
+          ${[0, 5, 10, 15, 20, 25, 30]
+            .map(
+              (p) =>
+                `<option value="${p}" ${
+                  item.descuento_pct == p ? "selected" : ""
+                }>${p}%</option>`,
+            )
+            .join("")}
+        </select>
+      </td>
 
-      <td>$${formatearCOP(item.subtotal)}</td>
+
+      <td>$${formatearCOP(item.subtotal_final)}</td>
 
       <td>
         <button
@@ -1090,6 +1119,12 @@ function posCambiarPrecio(index, tipo) {
   const item = posVenta.items[index];
   item.precio_tipo = tipo;
 
+  posRecalcular();
+  posRender();
+}
+
+function posCambiarDescuento(index, porcentaje) {
+  posVenta.items[index].descuento_pct = Number(porcentaje);
   posRecalcular();
   posRender();
 }
@@ -1124,7 +1159,9 @@ async function prepararPOS() {
   }
 
   posVenta.items = [];
-  posVenta.total = 0;
+  posVenta.subtotal = 0;
+  posVenta.descuento_global_pct = 0;
+  document.getElementById("posDescuentoGlobal").value = 0;
   posRender();
 
   // 🔥 Forzar foco después de render y activación de sección
@@ -1154,18 +1191,18 @@ async function posConfirmarVenta() {
 
   // ✅ Si no es efectivo, forzar monto igual al total
   if (metodoPago !== "efectivo") {
-    montoRecibido = posVenta.total;
+    montoRecibido = posVenta.total_con_descuento;
   }
 
   // ✅ Validación solo para efectivo
   if (metodoPago === "efectivo") {
-    if (!montoRecibido || montoRecibido < posVenta.total) {
+    if (!montoRecibido || montoRecibido < posVenta.total_con_descuento) {
       alert("Monto recibido insuficiente.");
       return;
     }
   }
 
-  const comision = calcularComision(posVenta.total, metodoPago);
+  const comision = calcularComision(posVenta.total_con_descuento, metodoPago);
 
   const ventaData = {
     action: "registrarVentaPOS",
@@ -1175,7 +1212,9 @@ async function posConfirmarVenta() {
       producto_id: item.producto_id,
       cantidad: item.cantidad,
       precio: item.precio_unitario,
+      descuento_item_pct: item.descuento_pct,
     })),
+    descuento_global_pct: posVenta.descuento_global_pct,
     metodoPago: metodoPago,
     comision: comision,
   };
@@ -1195,7 +1234,7 @@ async function posConfirmarVenta() {
 
       // Limpiar estado del POS
       posVenta.items = [];
-      posVenta.total = 0;
+      posVenta.total_con_descuento = 0;
       posRender();
 
       montoRecibidoInput.value = "";
@@ -1231,7 +1270,7 @@ if (posMontoInput) {
     if (metodo !== "efectivo") return;
 
     const recibido = limpiarNumero(posMontoInput.value);
-    const cambio = recibido - posVenta.total;
+    const cambio = recibido - posVenta.total_con_descuento;
 
     if (posCambio) {
       posCambio.textContent = cambio >= 0 ? formatearCOP(cambio) : "0";
@@ -1286,7 +1325,7 @@ if (metodoPagoSelect) {
 
 function actualizarComision() {
   const metodo = document.getElementById("posMetodoPago").value;
-  const subtotal = posVenta.total;
+  const subtotal = posVenta.total_con_descuento;
 
   const porcentaje = obtenerPorcentajeMetodo(metodo);
   const comision = calcularComision(subtotal, metodo);
@@ -1332,7 +1371,7 @@ function formatearCOP(valor) {
 
 // 🔹 Limpia puntos y devuelve número limpio
 function limpiarNumero(valor) {
-  return Number(String(valor).replace(/\./g, ""));
+  return Number(String(valor).replace(/[^\d]/g, ""));
 }
 
 // 🔹 Formatea mientras el usuario escribe
@@ -1363,3 +1402,11 @@ document.addEventListener("input", function (e) {
     formatearInputMoneda(e.target);
   }
 });
+
+document
+  .getElementById("posDescuentoGlobal")
+  .addEventListener("change", function () {
+    posVenta.descuento_global_pct = Number(this.value);
+    posRecalcular();
+    posRender();
+  });

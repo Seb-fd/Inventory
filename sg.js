@@ -48,7 +48,9 @@ const VENTAS_POS_HEADERS = [
   "id_venta",
   "fecha",
   "cliente",
-  "total",
+  "subtotal",
+  "descuento_global_pct",
+  "total_final",
   "metodo_pago",
   "comision",
   "monto_recibido",
@@ -63,7 +65,9 @@ const VENTAS_DETALLE_HEADERS = [
   "codigo_producto",
   "cantidad",
   "precio_unitario",
-  "subtotal",
+  "descuento_item_pct",
+  "subtotal_original",
+  "subtotal_final",
   "metodo_pago",
 ];
 
@@ -449,7 +453,7 @@ function registrarVentaPOS(data) {
   const idCol = headers.indexOf("id");
   const stockCol = headers.indexOf("stock");
 
-  let totalVenta = 0;
+  let subtotalGeneral = 0;
   let updatesStock = [];
 
   for (let item of items) {
@@ -480,15 +484,28 @@ function registrarVentaPOS(data) {
     const nuevoStock = stockActual - cantidad;
     updatesStock.push({ rowIndex, nuevoStock });
 
-    totalVenta += cantidad * precio;
+    const descuentoItemPct = Number(item.descuento_item_pct) || 0;
+
+    const subtotalOriginal = cantidad * precio;
+    const descuentoItem = subtotalOriginal * (descuentoItemPct / 100);
+    const subtotalFinal = subtotalOriginal - descuentoItem;
+
+    subtotalGeneral += subtotalFinal;
   }
+
+  const descuentoGlobalPct = Number(data.descuento_global_pct) || 0;
+
+  const descuentoGlobal = subtotalGeneral * (descuentoGlobalPct / 100);
+
+  const totalConDescuento = subtotalGeneral - descuentoGlobal;
+  const totalFinal = totalConDescuento + comision;
 
   let cambio = 0;
 
   if (metodoPago === "efectivo") {
-    cambio = montoRecibido - totalVenta;
+    cambio = montoRecibido - totalFinal;
 
-    if (montoRecibido < totalVenta) {
+    if (montoRecibido < totalFinal) {
       return {
         status: "warning",
         message: "El monto recibido es menor al total de la venta.",
@@ -496,7 +513,7 @@ function registrarVentaPOS(data) {
     }
   } else {
     // Para tarjeta, transferencia, crédito no hay cambio
-    montoRecibido = totalVenta;
+    montoRecibido = totalFinal;
     cambio = 0;
   }
 
@@ -509,7 +526,9 @@ function registrarVentaPOS(data) {
       ventaId,
       fecha,
       cliente,
-      totalVenta,
+      subtotalGeneral,
+      descuentoGlobalPct,
+      totalFinal,
       metodoPago,
       comision,
       montoRecibido,
@@ -523,7 +542,11 @@ function registrarVentaPOS(data) {
   try {
     for (let item of items) {
       const detalleId = generateUniqueAppId();
-      const subtotal = item.cantidad * item.precio;
+      const descuentoItemPct = Number(item.descuento_item_pct) || 0;
+
+      const subtotalOriginal = item.cantidad * item.precio;
+      const descuentoItem = subtotalOriginal * (descuentoItemPct / 100);
+      const subtotalFinal = subtotalOriginal - descuentoItem;
 
       // 🔎 Buscar nombre y código del producto
       const productoRow = productosData.find(
@@ -541,7 +564,9 @@ function registrarVentaPOS(data) {
         codigoProducto,
         item.cantidad,
         item.precio,
-        subtotal,
+        descuentoItemPct,
+        subtotalOriginal,
+        subtotalFinal,
         metodoPago,
       ]);
     }
@@ -558,7 +583,7 @@ function registrarVentaPOS(data) {
         .setValue(update.nuevoStock);
     }
 
-    actualizarResumenDiario(totalVenta, items, comision);
+    actualizarResumenDiario(totalFinal, items, comision, descuentoGlobalPct);
   } catch (e) {
     return { status: "error", message: "Error al actualizar stock." };
   }
@@ -566,13 +591,18 @@ function registrarVentaPOS(data) {
   return {
     status: "success",
     message: "Venta registrada correctamente.",
-    total: totalVenta,
+    total: totalFinal,
     cambio: cambio,
     ventaId: ventaId,
   };
 }
 
-function actualizarResumenDiario(totalVenta, items, comision) {
+function actualizarResumenDiario(
+  totalFinal,
+  items,
+  comision,
+  descuentoGlobalPct,
+) {
   const ss = getSpreadsheet();
   const sheetResumen = ss.getSheetByName(HOJA_RESUMEN);
   const sheetProductos = ss.getSheetByName(HOJA_PRODUCTOS);
@@ -608,6 +638,7 @@ function actualizarResumenDiario(totalVenta, items, comision) {
 
   let gananciaTotal = 0;
   let totalProductosVendidos = 0;
+  let costoTotal = 0;
 
   for (let item of items) {
     const productoRow = productosData.find(
@@ -615,18 +646,26 @@ function actualizarResumenDiario(totalVenta, items, comision) {
     );
     if (productoRow) {
       const costo = parseFloat(productoRow[precioCompraCol]) || 0;
-      gananciaTotal += (item.precio - costo) * item.cantidad;
+      const descuentoItemPct = Number(item.descuento_item_pct) || 0;
+
+      const subtotalOriginal = item.precio * item.cantidad;
+      const descuentoItem = subtotalOriginal * (descuentoItemPct / 100);
+      const subtotalFinal = subtotalOriginal - descuentoItem;
+
+      costoTotal += costo * item.cantidad;
+      gananciaTotal += subtotalFinal;
+
       totalProductosVendidos += item.cantidad;
     }
   }
 
-  gananciaTotal = gananciaTotal - (parseFloat(comision) || 0);
+  gananciaTotal = gananciaTotal - costoTotal - (parseFloat(comision) || 0);
 
   if (rowIndex === -1) {
     // Crear nueva fila
     sheetResumen.appendRow([
       hoy,
-      totalVenta,
+      totalFinal,
       0,
       gananciaTotal,
       totalProductosVendidos,
@@ -635,7 +674,7 @@ function actualizarResumenDiario(totalVenta, items, comision) {
     // Actualizar existente
     sheetResumen
       .getRange(rowIndex + 1, ventasCol + 1)
-      .setValue(data[rowIndex][ventasCol] + totalVenta);
+      .setValue(data[rowIndex][ventasCol] + totalFinal);
 
     sheetResumen
       .getRange(rowIndex + 1, gananciaCol + 1)
