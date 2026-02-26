@@ -79,7 +79,7 @@
                 class="fas fa-shopping-cart fa-2x"
                 style="color: var(--primary-color)"
               ></i>
-              <div class="stat-value" id="totalVentas">$0.00</div>
+              <div class="stat-value" id="totalVentas">$0</div>
               <div class="stat-label">Total Ventas</div>
             </div>
             <div class="stat-card compras">
@@ -87,7 +87,7 @@
                 class="fas fa-truck-loading fa-2x"
                 style="color: var(--info-color)"
               ></i>
-              <div class="stat-value" id="totalCompras">$0.00</div>
+              <div class="stat-value" id="totalCompras">$0</div>
               <div class="stat-label">Total Compras</div>
             </div>
             <div class="stat-card ganancias">
@@ -95,7 +95,7 @@
                 class="fas fa-chart-line fa-2x"
                 style="color: var(--secondary-color)"
               ></i>
-              <div class="stat-value" id="totalGanancias">$0.00</div>
+              <div class="stat-value" id="totalGanancias">$0</div>
               <div class="stat-label">Ganancias Netas</div>
             </div>
             <div class="stat-card gastos">
@@ -103,7 +103,7 @@
                 class="fas fa-money-bill-wave fa-2x"
                 style="color: var(--danger-color)"
               ></i>
-              <div class="stat-value" id="totalGastos">$0.00</div>
+              <div class="stat-value" id="totalGastos">$0</div>
               <div class="stat-label">Total Gastos</div>
             </div>
           </div>
@@ -192,6 +192,7 @@
               <input
                 type="number"
                 id="p_precio_compra"
+                class="money-input"
                 required
                 placeholder="0"
                 value="0"
@@ -202,6 +203,7 @@
               <input
                 type="number"
                 id="p_precio_venta"
+                class="money-input"
                 required
                 placeholder="0"
                 value="0"
@@ -212,6 +214,7 @@
               <input
                 type="number"
                 id="p_precio_venta_2"
+                class="money-input"
                 placeholder="0"
                 value="0"
               />
@@ -221,6 +224,7 @@
               <input
                 type="number"
                 id="p_precio_venta_3"
+                class="money-input"
                 placeholder="0"
                 value="0"
               />
@@ -230,6 +234,7 @@
               <input
                 type="number"
                 id="p_precio_venta_4"
+                class="money-input"
                 placeholder="0"
                 value="0"
               />
@@ -282,8 +287,7 @@
         <!-- Sección 4: Compras -->
         <section id="compras" class="content-section">
           <h2>
-            <i class="fas fa-truck-loading"></i> Registro de Compras (Añade
-            Stock)
+            <i class="fas fa-truck-loading"></i> Registro de Compras
           </h2>
           <form id="compraForm" class="form-grid">
             <div class="form-group">
@@ -306,10 +310,10 @@
               <input
                 type="number"
                 id="co_precio_compra"
+                class="money-input"
                 required
-                min="0.01"
-                step="0.01"
-              />
+                placeholder="0"
+               />
             </div>
             <div class="form-group">
               <label for="co_proveedor">Proveedor (Opcional):</label>
@@ -337,12 +341,11 @@
         <!-- Sección 5: Ventas -->
         <section id="ventas" class="content-section">
           <h2>
-            <i class="fas fa-cash-register"></i> Registro de Ventas (Resta
-            Stock)
+            <i class="fas fa-cash-register"></i> Registro de Ventas
           </h2>
           <!-- POS RÁPIDO -->
           <div class="pos-box">
-            <h3>POS Rápido</h3>
+            <h3>Buscar Producto (ID, Código o Nombre):</h3>
 
             <input
               type="text"
@@ -369,16 +372,16 @@
             <div id="posTotalesContainer">
 
               <div id="posSubtotalContainer">
-                Subtotal: $<span id="posSubtotal">0.00</span>
+                Subtotal: $<span id="posSubtotal">0</span>
               </div>
 
               <div id="posComisionDetalleContainer" style="display:none;">
                 Comisión (<span id="posPorcentaje">0%</span>): 
-                $<span id="posComisionDetalle">0.00</span>
+                $<span id="posComisionDetalle">0</span>
               </div>
 
               <div id="posTotalFinalContainer" style="font-size: 24px; font-weight: bold; margin-top: 10px;">
-                Total: $<span id="posTotal">0.00</span>
+                Total: $<span id="posTotal">0</span>
               </div>
 
             </div>
@@ -396,19 +399,18 @@
           <div class="pos-payment">
             <label>Monto entregado</label>
             <input
-              type="number"
+              type="text"
               id="posMontoRecibido"
-              min="0"
-              step="0.01"
-              placeholder="0.00"
+              class="money-input"
+              placeholder="0"
             />
 
             <div id="posComisionContainer" style="display: none">
-              Comisión: $<span id="posComision">0.00</span>
+              Comisión: $<span id="posComision">0</span>
             </div>
 
             <div id="posCambioContainer" class="pos-change">
-              Cambio: <strong>$<span id="posCambio">0.00</span></strong>
+              Cambio: <strong>$<span id="posCambio">0</span></strong>
             </div>
           </div>
           <div style="margin-top: 20px">

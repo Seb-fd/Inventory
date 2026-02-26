@@ -325,13 +325,13 @@ async function calcularResumenFinanciero() {
 
     // Actualizar estadísticas
     document.getElementById("totalVentas").textContent =
-      `$${totalVentas.toFixed(2)}`;
+      `$${formatearCOP(totalVentas)}`;
     document.getElementById("totalCompras").textContent =
-      `$${totalCompras.toFixed(2)}`;
+      `$${formatearCOP(totalCompras)}`;
     document.getElementById("totalGanancias").textContent =
-      `$${ganancias.toFixed(2)}`;
+      `$${formatearCOP(ganancias)}`;
     document.getElementById("totalGastos").textContent =
-      `$${totalCompras.toFixed(2)}`;
+      `$${formatearCOP(totalCompras)}`;
 
     // Colores según ganancias
     const gananciasElement = document.getElementById("totalGanancias");
@@ -346,11 +346,7 @@ async function calcularResumenFinanciero() {
     displayStatus(
       "statusDashboard",
       "success",
-      `Resumen calculado: Ventas: $${totalVentas.toFixed(
-        2,
-      )} | Compras: $${totalCompras.toFixed(
-        2,
-      )} | Ganancia: $${ganancias.toFixed(2)}`,
+      `Resumen calculado: Ventas: $${formatearCOP(totalVentas)} | Compras: $${formatearCOP(totalCompras)} | Ganancia: $${formatearCOP(ganancias)}`,
     );
 
     return { totalVentas, totalCompras, ganancias };
@@ -589,7 +585,14 @@ async function handlePostAction(e, action, statusDivId) {
   const data = {};
   Array.from(form.elements).forEach((input) => {
     if (input.id && (input.id.startsWith("p_") || input.id.startsWith("c_"))) {
-      data[input.id.replace(/p_|c_/, "")] = input.value;
+      let valor = input.value;
+
+      // 🔥 Si es campo de dinero, limpiar antes de enviar
+      if (input.classList.contains("money-input")) {
+        valor = limpiarNumero(valor);
+      }
+
+      data[input.id.replace(/p_|c_/, "")] = valor;
     }
   });
   data.action = action;
@@ -674,15 +677,13 @@ function updateProductDetails(product, detailDiv, prefix) {
                 <p><b>Stock Actual:</b> <span ${stockStyle}>${
                   product.stock
                 }</span></p>
-                <p><b>${priceLabel}:</b> $${parseFloat(basePrice).toFixed(
-                  2,
-                )}</p>
+                <p><b>${priceLabel}:</b> $${formatearCOP(basePrice)}</p>
             `;
 
   const priceInput = document.getElementById(
     `${prefix}_precio_${isCompra ? "compra" : "venta"}`,
   );
-  priceInput.value = parseFloat(basePrice).toFixed(2);
+  priceInput.value = parseFloat(basePrice);
 
   // 👇 SOLO PARA VENTAS: selector de precio
   if (!isCompra) {
@@ -697,7 +698,7 @@ function updateProductDetails(product, detailDiv, prefix) {
 
     priceSelect.onchange = () => {
       const selected = priceSelect.value;
-      priceInput.value = parseFloat(prices[selected]).toFixed(2);
+      priceInput.value = parseFloat(prices[selected]);
     };
 
     // Disparar cambio inicial
@@ -738,9 +739,11 @@ async function handleTransactionPost(e, type) {
     action: "registrarTransaccion",
     producto_id: productoId,
     cantidad: document.getElementById(`${prefix}_cantidad`).value,
-    precio: document.getElementById(
-      `${prefix}_precio_${type === "compra" ? "compra" : "venta"}`,
-    ).value,
+    precio: limpiarNumero(
+      document.getElementById(
+        `${prefix}_precio_${type === "compra" ? "compra" : "venta"}`,
+      ).value,
+    ),
     type: type,
     extra_data: document.getElementById(
       `${prefix}_${type === "compra" ? "proveedor" : "cliente"}`,
@@ -817,11 +820,11 @@ async function loadInventario() {
                                 <td>${p.código}</td>
                                 <td>${p.categoría}</td>
                                 <td ${stockStyle}>${p.stock}</td>
-                                <td>$${pc.toFixed(2)}</td>
-                                <td>$${pv1.toFixed(2)}</td>
-                                <td>$${pv2.toFixed(2)}</td>
-                                <td>$${pv3.toFixed(2)}</td>
-                                <td>$${pv4.toFixed(2)}</td>
+                                <td>$${formatearCOP(pc)}</td>
+                                <td>$${formatearCOP(pv1)}</td>
+                                <td>$${formatearCOP(pv2)}</td>
+                                <td>$${formatearCOP(pv3)}</td>
+                                <td>$${formatearCOP(pv4)}</td>
                             </tr>
                         `;
         })
@@ -877,7 +880,7 @@ async function loadSummary(type) {
               if (value instanceof Date) {
                 value = value.toLocaleDateString();
               } else if (typeof value === "number") {
-                value = value.toFixed(2);
+                value = formatearCOP(value);
               }
               return `<td>${value}</td>`;
             })
@@ -1043,7 +1046,7 @@ function posRender() {
               ([key, value]) =>
                 `<option value="${key}" ${
                   item.precio_tipo === key ? "selected" : ""
-                }>$${value.toFixed(2)}</option>`,
+                }>$${formatearCOP(value)}</option>`,
             )
             .join("")}
         </select>
@@ -1061,7 +1064,7 @@ function posRender() {
       </td>
 
 
-      <td>$${item.subtotal.toFixed(2)}</td>
+      <td>$${formatearCOP(item.subtotal)}</td>
 
       <td>
         <button
@@ -1147,7 +1150,7 @@ async function posConfirmarVenta() {
   // ✅ DECLARAR PRIMERO metodoPago
   const metodoPago = document.getElementById("posMetodoPago").value;
 
-  let montoRecibido = Number(montoRecibidoInput.value);
+  let montoRecibido = limpiarNumero(montoRecibidoInput.value);
 
   // ✅ Si no es efectivo, forzar monto igual al total
   if (metodoPago !== "efectivo") {
@@ -1204,7 +1207,7 @@ async function posConfirmarVenta() {
 
       // Mostrar confirmación
       alert(
-        `Venta realizada.\nTotal: $${totalVenta.toFixed(2)}\nCambio: $${cambioVenta.toFixed(2)}`,
+        `Venta realizada.\nTotal: $${formatearCOP(totalVenta)}\nCambio: $${formatearCOP(cambioVenta)}`,
       );
 
       // Volver a enfocar el input para el siguiente cliente
@@ -1227,11 +1230,11 @@ if (posMontoInput) {
 
     if (metodo !== "efectivo") return;
 
-    const recibido = Number(posMontoInput.value);
+    const recibido = limpiarNumero(posMontoInput.value);
     const cambio = recibido - posVenta.total;
 
     if (posCambio) {
-      posCambio.textContent = cambio >= 0 ? cambio.toFixed(2) : "0.00";
+      posCambio.textContent = cambio >= 0 ? formatearCOP(cambio) : "0";
     }
   });
 }
@@ -1274,7 +1277,7 @@ if (metodoPagoSelect) {
 
       // Reiniciar cambio a 0
       const posCambio = document.getElementById("posCambio");
-      if (posCambio) posCambio.textContent = "0.00";
+      if (posCambio) posCambio.textContent = "0";
     }
 
     actualizarComision();
@@ -1298,19 +1301,65 @@ function actualizarComision() {
   const totalSpan = document.getElementById("posTotal");
 
   // 🔹 Siempre actualizar subtotal
-  subtotalSpan.textContent = subtotal.toFixed(2);
+  subtotalSpan.textContent = formatearCOP(subtotal);
 
   if (porcentaje > 0) {
     comisionContainer.style.display = "block";
-    comisionSpan.textContent = comision.toFixed(2);
+    comisionSpan.textContent = formatearCOP(comision);
     porcentajeSpan.textContent = porcentaje + "%";
 
     // 🔥 ESTE ES EL TOTAL REAL CON COMISIÓN
-    totalSpan.textContent = totalFinal.toFixed(2);
+    totalSpan.textContent = formatearCOP(totalFinal);
   } else {
     comisionContainer.style.display = "none";
 
     // 🔥 SI ES EFECTIVO, EL TOTAL ES EL SUBTOTAL
-    totalSpan.textContent = subtotal.toFixed(2);
+    totalSpan.textContent = formatearCOP(subtotal);
   }
 }
+
+// FUNCION PARA DAR FORMATO DE MONEDA
+function formatearCOP(valor) {
+  if (!valor && valor !== 0) return "";
+
+  const numero = Number(valor);
+
+  return new Intl.NumberFormat("es-CO", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(numero);
+}
+
+// 🔹 Limpia puntos y devuelve número limpio
+function limpiarNumero(valor) {
+  return Number(String(valor).replace(/\./g, ""));
+}
+
+// 🔹 Formatea mientras el usuario escribe
+function formatearInputMoneda(input) {
+  let cursorPos = input.selectionStart;
+
+  let valor = input.value.replace(/\D/g, "");
+
+  if (!valor) {
+    input.value = "";
+    return;
+  }
+
+  let numero = Number(valor);
+
+  input.value = new Intl.NumberFormat("es-CO", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(numero);
+
+  // Mantener cursor al final (modo simple estable)
+  input.setSelectionRange(input.value.length, input.value.length);
+}
+
+// 🔹 Activar autoformato para todos los inputs con clase money-input
+document.addEventListener("input", function (e) {
+  if (e.target.classList.contains("money-input")) {
+    formatearInputMoneda(e.target);
+  }
+});
