@@ -865,24 +865,50 @@ async function loadSummary(type) {
       );
       table.classList.remove("hidden");
 
-      const headers = Object.keys(data.data[0])
-        .map((h) => `<th>${h.toUpperCase().replace("_", " ")}</th>`)
-        .join("");
-      tableHead.innerHTML = `<tr>${headers}</tr>`;
+      // 🔥 Definir columnas visibles manualmente
+      const columnas = [
+        { key: "fecha", label: "Fecha" },
+        { key: "cliente", label: "Cliente" },
+        { key: "metodo_pago", label: "Pago" },
+        { key: "descuento_global_pct", label: "Dcto %" },
+        { key: "total_final", label: "Total" },
+        { key: "monto_recibido", label: "Recibido" },
+        { key: "cambio", label: "Cambio" },
+      ];
 
+      // 🔹 Crear encabezados
+      tableHead.innerHTML = `
+  <tr>
+    ${columnas.map((col) => `<th>${col.label}</th>`).join("")}
+  </tr>
+`;
+
+      // 🔹 Crear filas
       tableBody.innerHTML = data.data
         .map((row) => {
-          const cells = Object.values(row)
-            .map((value) => {
-              if (value instanceof Date) {
-                value = value.toLocaleDateString();
-              } else if (typeof value === "number") {
-                value = formatearCOP(value);
-              }
-              return `<td>${value}</td>`;
-            })
-            .join("");
-          return `<tr>${cells}</tr>`;
+          return `
+      <tr onclick="mostrarFactura('${row.id_venta}')" style="cursor:pointer;">
+        ${columnas
+          .map((col) => {
+            let value = row[col.key] ?? "";
+
+            if (col.key === "fecha" && value) {
+              value = new Date(value).toLocaleDateString();
+            }
+
+            if (
+              col.key === "total_final" ||
+              col.key === "monto_recibido" ||
+              col.key === "cambio"
+            ) {
+              value = formatearCOP(value);
+            }
+
+            return `<td>${value}</td>`;
+          })
+          .join("")}
+      </tr>
+    `;
         })
         .join("");
     } else {
@@ -1245,9 +1271,7 @@ async function posConfirmarVenta() {
       inventarioCargado = false;
 
       // Mostrar confirmación
-      alert(
-        `Venta realizada.\nTotal: $${formatearCOP(totalVenta)}\nCambio: $${formatearCOP(cambioVenta)}`,
-      );
+      mostrarFactura(data.id_venta || data.ventaId);
 
       // Volver a enfocar el input para el siguiente cliente
       const input = document.getElementById("posBuscar");
@@ -1410,3 +1434,88 @@ document
     posRecalcular();
     posRender();
   });
+
+async function mostrarFactura(idVenta) {
+  if (!idVenta) {
+    console.error("ID de venta inválido:", idVenta);
+    alert("No se pudo obtener el ID de la venta.");
+    return;
+  }
+  const response = await fetch(
+    `${SCRIPT_URL}?action=getVentaDetalle&id=${idVenta}`,
+  );
+  const data = await response.json();
+
+  if (data.status !== "success") {
+    alert(data.message);
+    return;
+  }
+
+  const { venta, items } = data;
+
+  let html = `
+    <h2>Factura #${venta.id_venta}</h2>
+    <p><b>Fecha:</b> ${new Date(venta.fecha).toLocaleString()}</p>
+    <p><b>Cliente:</b> ${venta.cliente}</p>
+    <p><b>Método de Pago:</b> ${venta.metodo_pago}</p>
+
+    <hr>
+
+    <table style="width:100%; border-collapse:collapse;" border="1">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>Código</th>
+          <th>Cant</th>
+          <th>Precio</th>
+          <th>Dcto %</th>
+          <th>Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  items.forEach((item) => {
+    html += `
+      <tr>
+        <td>${item.producto_nombre}</td>
+        <td>${item.producto_codigo}</td>
+        <td>${item.cantidad}</td>
+        <td>$${formatearCOP(item.precio_unitario)}</td>
+        <td>${item.descuento_item_pct}%</td>
+        <td>$${formatearCOP(item.subtotal_final)}</td>
+      </tr>
+    `;
+  });
+
+  html += `
+      </tbody>
+    </table>
+
+    <hr>
+    <p><b>Subtotal:</b> $${formatearCOP(venta.subtotal)}</p>
+    <p><b>Descuento Global:</b> ${venta.descuento_global_pct}%</p>
+    <p><b>Total con descuento:</b> $${formatearCOP(venta.total_con_descuento)}</p>
+    <p><b>Comisión:</b> $${formatearCOP(venta.comision)}</p>
+    <h3>Total: $${formatearCOP(venta.total_final)}</h3>
+    <p><b>Recibido:</b> $${formatearCOP(venta.monto_recibido)}</p>
+    <p><b>Cambio:</b> $${formatearCOP(venta.cambio)}</p>
+  `;
+
+  document.getElementById("facturaContenido").innerHTML = html;
+  document.getElementById("facturaModal").classList.remove("hidden");
+
+  abrirFactura();
+}
+
+function cerrarFactura() {
+  document.getElementById("facturaModal").classList.add("hidden");
+}
+
+function cerrarFactura() {
+  document.getElementById("facturaModal").classList.add("hidden");
+}
+
+function abrirFactura() {
+  document.getElementById("facturaModal").classList.remove("hidden");
+}

@@ -966,3 +966,228 @@ input[type="number"]::-webkit-inner-spin-button {
   font-size: 18px;
   font-weight: bold;
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #facturaModal,
+  #facturaModal * {
+    visibility: visible;
+  }
+
+  #facturaModal {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  .btn {
+    display: none;
+  }
+}
+
+/* ============ FACTURA MODAL ============ */
+
+.factura-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000; /* MÁS ALTO QUE SIDEBAR */
+  padding: 20px;
+}
+
+.factura-card {
+  background: white;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-8);
+  animation: slideIn 0.25s ease-out;
+}
+
+.factura-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+  border-bottom: 2px solid var(--primary-light);
+  padding-bottom: var(--space-3);
+}
+
+.factura-actions {
+  margin-top: var(--space-6);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.factura-card table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--space-4);
+}
+
+.factura-card th {
+  background: var(--primary-dark);
+  color: white;
+  padding: 10px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.factura-card td {
+  padding: 10px;
+  border-bottom: 1px solid var(--gray-200);
+  font-size: 0.875rem;
+}
+
+.factura-card tfoot td {
+  font-weight: bold;
+}
+
+.hidden {
+  display: none;
+}
+
+/* ========= CARD LAYOUT ========= */
+
+.card-container {
+  display: grid;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+.card-box {
+  background: white;
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--gray-200);
+}
+
+.card-box h3 {
+  margin-bottom: var(--space-4);
+  font-size: 1.1rem;
+}
+
+/* ========= TOTALES ========= */
+
+.totals-box {
+  background: linear-gradient(
+    135deg,
+    var(--primary-light),
+    rgba(255, 255, 255, 0.9)
+  );
+}
+
+.totals-grid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.total-final {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+  display: flex;
+  justify-content: space-between;
+  border-top: 2px solid var(--primary-color);
+  padding-top: var(--space-3);
+}
+
+/* ========= CAMBIO ========= */
+
+.pos-change {
+  margin: var(--space-3) 0;
+  font-size: 1.1rem;
+}
+
+/* ========= SELECT PERSONALIZADO ========= */
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  width: 100%;
+  padding: 10px 40px 10px 14px;
+
+  border-radius: var(--radius-md);
+  border: 1px solid var(--gray-300);
+  background-color: white;
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+}
+
+/* Flechita personalizada */
+select {
+  background-image: url("data:image/svg+xml;utf8,<svg fill='%23333' height='20' viewBox='0 0 20 20' width='20' xmlns='http://www.w3.org/2000/svg'><path d='M5 7l5 5 5-5H5z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 18px;
+}
+
+/* Hover */
+select:hover {
+  border-color: var(--primary-color);
+}
+
+/* Focus */
+select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+}
+
+/* ========= INPUTS NUMÉRICOS ========= */
+
+input[type="number"],
+.money-input {
+  width: 100%;
+  padding: 10px 14px;
+
+  border-radius: var(--radius-md);
+  border: 1px solid var(--gray-300);
+  font-family: inherit;
+  font-size: 0.9rem;
+
+  transition: all 0.2s ease;
+}
+
+/* Quitar flechas en Chrome */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Quitar flechas en Firefox */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Hover */
+input[type="number"]:hover,
+.money-input:hover {
+  border-color: var(--primary-color);
+}
+
+/* Focus elegante */
+input[type="number"]:focus,
+.money-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+}

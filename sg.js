@@ -97,7 +97,9 @@ function doGet(e) {
   let result;
 
   try {
-    if (action === "iniciar" || action === "resetear") {
+    if (action === "getVentaDetalle") {
+      result = getVentaDetalle(e.parameter.id);
+    } else if (action === "iniciar" || action === "resetear") {
       result =
         action === "iniciar" ? iniciarBaseDeDatos() : resetearBaseDeDatos();
     } else if (action === "getCategorias") {
@@ -117,7 +119,10 @@ function doGet(e) {
       };
     }
   } catch (error) {
-    result = { status: "error", message: `Error en doGet: ${error.message}` };
+    result = {
+      status: "error",
+      message: `Error en doGet: ${error.message}`,
+    };
   }
 
   return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(
@@ -835,5 +840,62 @@ function resetearBaseDeDatos() {
   return {
     status: "success",
     message: `Base de datos reseteada completamente: ${msg.join(" ")}`,
+  };
+}
+
+function getVentaDetalle(idVenta) {
+  const ss = getSpreadsheet();
+
+  const sheetVentas = ss.getSheetByName(HOJA_VENTAS);
+  const sheetDetalle = ss.getSheetByName(HOJA_VENTAS_DETALLE);
+
+  if (!sheetVentas || !sheetDetalle) {
+    return {
+      status: "error",
+      message: "No se encontraron las hojas necesarias.",
+    };
+  }
+
+  const ventasData = sheetVentas.getDataRange().getValues();
+  const detalleData = sheetDetalle.getDataRange().getValues();
+
+  if (ventasData.length < 2) {
+    return {
+      status: "error",
+      message: "No hay ventas registradas.",
+    };
+  }
+
+  const headersVentas = ventasData[0];
+  const headersDetalle = detalleData[0];
+
+  const ventaRow = ventasData.find(
+    (row, i) => i > 0 && String(row[0]) === String(idVenta),
+  );
+
+  if (!ventaRow) {
+    return {
+      status: "error",
+      message: "Venta no encontrada.",
+    };
+  }
+
+  const venta = {};
+  headersVentas.forEach((h, i) => (venta[h] = ventaRow[i]));
+
+  const items = detalleData
+    .filter(
+      (row, i) => i > 0 && String(row[1]) === String(idVenta), // 👈 CORREGIDO
+    )
+    .map((row) => {
+      const obj = {};
+      headersDetalle.forEach((h, i) => (obj[h] = row[i]));
+      return obj;
+    });
+
+  return {
+    status: "success",
+    venta: venta,
+    items: items,
   };
 }
