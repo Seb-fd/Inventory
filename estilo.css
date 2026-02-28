@@ -1191,3 +1191,68 @@ input[type="number"]:focus,
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
 }
+
+/* ========= POS HEADER ========= */
+
+.pos-header {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.pos-header input {
+  flex: 1;
+}
+
+/* ========= GRID INFERIOR ========= */
+
+.pos-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+/* ========= TARJETAS MÁS COMPACTAS ========= */
+
+.compact-card {
+  padding: var(--space-4);
+}
+
+.compact-card h3 {
+  margin-bottom: var(--space-3);
+  font-size: 1rem;
+}
+
+/* Totales compactos */
+.totals-grid.compact {
+  gap: var(--space-3);
+}
+
+.total-final.small {
+  font-size: 1.2rem;
+  padding-top: var(--space-2);
+}
+
+/* Filas alineadas */
+.row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Form group más pequeño */
+.form-group.small {
+  margin-bottom: var(--space-2);
+}
+
+.form-group.small label {
+  font-size: 0.8rem;
+}
+
+/* Cambio compacto */
+.pos-change.compact {
+  font-size: 0.95rem;
+  margin: var(--space-2) 0;
+}

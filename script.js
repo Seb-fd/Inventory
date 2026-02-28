@@ -1441,9 +1441,11 @@ async function mostrarFactura(idVenta) {
     alert("No se pudo obtener el ID de la venta.");
     return;
   }
+
   const response = await fetch(
     `${SCRIPT_URL}?action=getVentaDetalle&id=${idVenta}`,
   );
+
   const data = await response.json();
 
   if (data.status !== "success") {
@@ -1478,12 +1480,12 @@ async function mostrarFactura(idVenta) {
   items.forEach((item) => {
     html += `
       <tr>
-        <td>${item.producto_nombre}</td>
-        <td>${item.producto_codigo}</td>
-        <td>${item.cantidad}</td>
-        <td>$${formatearCOP(item.precio_unitario)}</td>
-        <td>${item.descuento_item_pct}%</td>
-        <td>$${formatearCOP(item.subtotal_final)}</td>
+        <td>${item.nombre_producto || ""}</td>
+        <td>${item.codigo_producto || ""}</td>
+        <td>${item.cantidad || 0}</td>
+        <td>$${formatearCOP(item.precio_unitario || 0)}</td>
+        <td>${item.descuento_item_pct || 0}%</td>
+        <td>$${formatearCOP(item.subtotal_final || 0)}</td>
       </tr>
     `;
   });
@@ -1493,18 +1495,19 @@ async function mostrarFactura(idVenta) {
     </table>
 
     <hr>
-    <p><b>Subtotal:</b> $${formatearCOP(venta.subtotal)}</p>
-    <p><b>Descuento Global:</b> ${venta.descuento_global_pct}%</p>
-    <p><b>Total con descuento:</b> $${formatearCOP(venta.total_con_descuento)}</p>
-    <p><b>Comisión:</b> $${formatearCOP(venta.comision)}</p>
-    <h3>Total: $${formatearCOP(venta.total_final)}</h3>
-    <p><b>Recibido:</b> $${formatearCOP(venta.monto_recibido)}</p>
-    <p><b>Cambio:</b> $${formatearCOP(venta.cambio)}</p>
+
+    <p><b>Subtotal:</b> $${formatearCOP(venta.subtotal || 0)}</p>
+    <p><b>Descuento Global:</b> ${venta.descuento_global_pct || 0}%</p>
+    <p><b>Comisión:</b> $${formatearCOP(venta.comision || 0)}</p>
+    <h3>Total Final: $${formatearCOP(venta.total_final || 0)}</h3>
+    <p><b>Recibido:</b> $${formatearCOP(venta.monto_recibido || 0)}</p>
+    <p><b>Cambio:</b> $${formatearCOP(venta.cambio || 0)}</p>
   `;
 
   document.getElementById("facturaContenido").innerHTML = html;
   document.getElementById("facturaModal").classList.remove("hidden");
 
+  console.log("DETALLE FACTURA:", data);
   abrirFactura();
 }
 
