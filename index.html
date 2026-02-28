@@ -381,6 +381,11 @@
                   <strong>$<span id="posSubtotal">0</span></strong>
                 </div>
 
+                <div class="row-between">
+                  <span>Subtotal con descuento global</span>
+                  <strong>$<span id="posSubtotalConDescuento">0</span></strong>
+                </div>
+
                 <div class="form-group small">
                   <label>Descuento Global</label>
                   <select id="posDescuentoGlobal">
@@ -398,7 +403,9 @@
                   id="posComisionDetalleContainer"
                   class="row-between hidden"
                 >
-                  <span>Comisión</span>
+                  <span>
+                    Comisión (<span id="posComisionPorcentaje">0</span>%)
+                  </span>
                   <strong>$<span id="posComisionDetalle">0</span></strong>
                 </div>
 
@@ -424,23 +431,20 @@
                 </select>
               </div>
 
-              <div class="form-group small">
-                <label>Monto entregado</label>
-                <input
-                  type="text"
-                  id="posMontoRecibido"
-                  class="money-input"
-                  placeholder="0"
-                />
-              </div>
+              <div id="bloqueEfectivo">
+                <div class="form-group small">
+                  <label>Monto entregado</label>
+                  <input
+                    type="text"
+                    id="posMontoRecibido"
+                    class="money-input"
+                    placeholder="0"
+                  />
+                </div>
 
-              <div id="posComisionContainer" class="row-between hidden">
-                <span>Comisión</span>
-                <strong>$<span id="posComision">0</span></strong>
-              </div>
-
-              <div id="posCambioContainer" class="pos-change compact">
-                Cambio: <strong>$<span id="posCambio">0</span></strong>
+                <div id="posCambioContainer" class="pos-change compact">
+                  Cambio: <strong>$<span id="posCambio">0</span></strong>
+                </div>
               </div>
 
               <button
@@ -452,7 +456,6 @@
               </button>
             </div>
           </div>
-
           <div id="statusVenta" class="status-message"></div>
         </section>
 
@@ -523,8 +526,12 @@
         <div id="facturaContenido"></div>
 
         <div class="factura-actions">
-          <button onclick="window.print()" class="btn primary-btn">
-            Imprimir
+          <button onclick="imprimirFacturaTermica()" class="btn primary-btn">
+            <i class="fas fa-receipt"></i> Imprimir Ticket Térmico
+          </button>
+
+          <button onclick="window.print()" class="btn secondary-btn">
+            <i class="fas fa-print"></i> Imprimir Vista Normal
           </button>
         </div>
       </div>

@@ -1047,7 +1047,7 @@ function posAgregarProducto(producto) {
 }
 
 function posRecalcular() {
-  let subtotal = 0;
+  let subtotalBase = 0;
 
   posVenta.items.forEach((item) => {
     item.precio_unitario = item.precios[item.precio_tipo];
@@ -1058,15 +1058,20 @@ function posRecalcular() {
 
     item.subtotal_final = item.subtotal_original - descuentoItem;
 
-    subtotal += item.subtotal_final;
+    subtotalBase += item.subtotal_final;
   });
 
-  posVenta.subtotal = subtotal;
+  // ✅ Guardar subtotal SIN descuento global
+  posVenta.subtotal = subtotalBase;
 
-  // 🔥 Descuento global
-  const descuentoGlobal = subtotal * (posVenta.descuento_global_pct / 100);
+  // ✅ Calcular descuento global
+  const descuentoGlobalMonto =
+    subtotalBase * (posVenta.descuento_global_pct / 100);
 
-  posVenta.total_con_descuento = subtotal - descuentoGlobal;
+  const subtotalConDescuento = subtotalBase - descuentoGlobalMonto;
+
+  // ✅ Guardar subtotal con descuento
+  posVenta.total_con_descuento = subtotalConDescuento;
 
   actualizarComision();
 }
@@ -1216,19 +1221,20 @@ async function posConfirmarVenta() {
   let montoRecibido = limpiarNumero(montoRecibidoInput.value);
 
   // ✅ Si no es efectivo, forzar monto igual al total
+  const comision = calcularComision(posVenta.total_con_descuento, metodoPago);
+  const totalFinal = posVenta.total_con_descuento + comision;
+
   if (metodoPago !== "efectivo") {
-    montoRecibido = posVenta.total_con_descuento;
+    montoRecibido = totalFinal;
   }
 
   // ✅ Validación solo para efectivo
   if (metodoPago === "efectivo") {
-    if (!montoRecibido || montoRecibido < posVenta.total_con_descuento) {
+    if (!montoRecibido || montoRecibido < totalFinal) {
       alert("Monto recibido insuficiente.");
       return;
     }
   }
-
-  const comision = calcularComision(posVenta.total_con_descuento, metodoPago);
 
   const ventaData = {
     action: "registrarVentaPOS",
@@ -1294,7 +1300,11 @@ if (posMontoInput) {
     if (metodo !== "efectivo") return;
 
     const recibido = limpiarNumero(posMontoInput.value);
-    const cambio = recibido - posVenta.total_con_descuento;
+    const comision = calcularComision(posVenta.total_con_descuento, metodo);
+
+    const totalFinal = posVenta.total_con_descuento + comision;
+
+    const cambio = recibido - totalFinal;
 
     if (posCambio) {
       posCambio.textContent = cambio >= 0 ? formatearCOP(cambio) : "0";
@@ -1321,25 +1331,22 @@ function obtenerPorcentajeMetodo(metodo) {
 }
 
 const metodoPagoSelect = document.getElementById("posMetodoPago");
-const comisionContainer = document.getElementById("posComisionContainer");
-const comisionSpan = document.getElementById("posComision");
-const montoInput = document.getElementById("posMontoRecibido");
-const pagoContainer = document.querySelector(".pos-payment");
+const bloqueEfectivo = document.getElementById("bloqueEfectivo");
 
-if (metodoPagoSelect) {
+if (metodoPagoSelect && bloqueEfectivo) {
   metodoPagoSelect.addEventListener("change", () => {
     const metodo = metodoPagoSelect.value;
 
     if (metodo === "efectivo") {
-      pagoContainer.style.display = "block";
-      montoInput.disabled = false;
+      bloqueEfectivo.classList.remove("hidden");
     } else {
-      pagoContainer.style.display = "none";
-      montoInput.disabled = true;
-      montoInput.value = "";
+      bloqueEfectivo.classList.add("hidden");
 
-      // Reiniciar cambio a 0
+      // Reset visual
+      const montoInput = document.getElementById("posMontoRecibido");
       const posCambio = document.getElementById("posCambio");
+
+      if (montoInput) montoInput.value = "";
       if (posCambio) posCambio.textContent = "0";
     }
 
@@ -1349,35 +1356,74 @@ if (metodoPagoSelect) {
 
 function actualizarComision() {
   const metodo = document.getElementById("posMetodoPago").value;
-  const subtotal = posVenta.total_con_descuento;
+
+  const subtotalBase = posVenta.subtotal; // 🔥 SIN descuento
+  const subtotalConDescuento = posVenta.total_con_descuento; // 🔥 CON descuento
 
   const porcentaje = obtenerPorcentajeMetodo(metodo);
-  const comision = calcularComision(subtotal, metodo);
-  const totalFinal = subtotal + comision;
+  const comision = calcularComision(subtotalConDescuento, metodo);
+  const totalFinal = subtotalConDescuento + comision;
 
+  // ===== ELEMENTOS =====
   const subtotalSpan = document.getElementById("posSubtotal");
-  const comisionContainer = document.getElementById(
+  const subtotalConDescSpan = document.getElementById(
+    "posSubtotalConDescuento",
+  );
+
+  const comisionDetalleContainer = document.getElementById(
     "posComisionDetalleContainer",
   );
-  const comisionSpan = document.getElementById("posComisionDetalle");
-  const porcentajeSpan = document.getElementById("posPorcentaje");
+  const comisionDetalleSpan = document.getElementById("posComisionDetalle");
+  const comisionPorcentajeSpan = document.getElementById(
+    "posComisionPorcentaje",
+  );
+
+  const comisionPagoContainer = document.getElementById("posComisionContainer");
+  const comisionPagoSpan = document.getElementById("posComision");
+
   const totalSpan = document.getElementById("posTotal");
 
-  // 🔹 Siempre actualizar subtotal
-  subtotalSpan.textContent = formatearCOP(subtotal);
+  // 🔥 ACTUALIZAR SUBTOTAL BASE (NO CAMBIA CON DESCUENTO)
+  if (subtotalSpan) {
+    subtotalSpan.textContent = formatearCOP(subtotalBase);
+  }
 
+  // 🔥 ACTUALIZAR SUBTOTAL CON DESCUENTO
+  if (subtotalConDescSpan) {
+    subtotalConDescSpan.textContent = formatearCOP(subtotalConDescuento);
+  }
+
+  // 🔥 COMISIÓN
   if (porcentaje > 0) {
-    comisionContainer.style.display = "block";
-    comisionSpan.textContent = formatearCOP(comision);
-    porcentajeSpan.textContent = porcentaje + "%";
+    if (comisionDetalleContainer) {
+      comisionDetalleContainer.classList.remove("hidden");
+      comisionDetalleSpan.textContent = formatearCOP(comision);
 
-    // 🔥 ESTE ES EL TOTAL REAL CON COMISIÓN
+      if (comisionPorcentajeSpan) {
+        comisionPorcentajeSpan.textContent = porcentaje;
+      }
+    }
+
+    if (comisionPagoContainer) {
+      comisionPagoContainer.classList.remove("hidden");
+      comisionPagoSpan.textContent = formatearCOP(comision);
+    }
+
     totalSpan.textContent = formatearCOP(totalFinal);
   } else {
-    comisionContainer.style.display = "none";
+    if (comisionDetalleContainer) {
+      comisionDetalleContainer.classList.add("hidden");
+    }
 
-    // 🔥 SI ES EFECTIVO, EL TOTAL ES EL SUBTOTAL
-    totalSpan.textContent = formatearCOP(subtotal);
+    if (comisionPorcentajeSpan) {
+      comisionPorcentajeSpan.textContent = 0;
+    }
+
+    if (comisionPagoContainer) {
+      comisionPagoContainer.classList.add("hidden");
+    }
+
+    totalSpan.textContent = formatearCOP(subtotalConDescuento);
   }
 }
 
@@ -1435,6 +1481,7 @@ document
     posRender();
   });
 
+let ultimaVentaData = null;
 async function mostrarFactura(idVenta) {
   if (!idVenta) {
     console.error("ID de venta inválido:", idVenta);
@@ -1454,11 +1501,31 @@ async function mostrarFactura(idVenta) {
   }
 
   const { venta, items } = data;
+  ultimaVentaData = { venta, items };
+
+  const subtotalBase = Number(venta.subtotal || 0);
+  const descuentoGlobalPct = Number(venta.descuento_global_pct || 0);
+  const comisionValor = Number(venta.comision || 0);
+  const totalFinal = Number(venta.total_final || 0);
+  const montoRecibido = Number(venta.monto_recibido || 0);
+  const cambio = Number(venta.cambio || 0);
+  const metodoPago = (venta.metodo_pago || "").toLowerCase();
+
+  const montoDescuentoGlobal = subtotalBase * (descuentoGlobalPct / 100);
+  const subtotalConDescuento = subtotalBase - montoDescuentoGlobal;
+
+  let comisionPct = 0;
+  if (subtotalConDescuento > 0 && comisionValor > 0) {
+    comisionPct = (comisionValor / subtotalConDescuento) * 100;
+  }
+
+  const hayDescuento = descuentoGlobalPct > 0;
+  const hayComision = comisionValor > 0;
 
   let html = `
     <h2>Factura #${venta.id_venta}</h2>
     <p><b>Fecha:</b> ${new Date(venta.fecha).toLocaleString()}</p>
-    <p><b>Cliente:</b> ${venta.cliente}</p>
+    <p><b>Cliente:</b> ${venta.cliente || "Consumidor Final"}</p>
     <p><b>Método de Pago:</b> ${venta.metodo_pago}</p>
 
     <hr>
@@ -1495,14 +1562,53 @@ async function mostrarFactura(idVenta) {
     </table>
 
     <hr>
-
-    <p><b>Subtotal:</b> $${formatearCOP(venta.subtotal || 0)}</p>
-    <p><b>Descuento Global:</b> ${venta.descuento_global_pct || 0}%</p>
-    <p><b>Comisión:</b> $${formatearCOP(venta.comision || 0)}</p>
-    <h3>Total Final: $${formatearCOP(venta.total_final || 0)}</h3>
-    <p><b>Recibido:</b> $${formatearCOP(venta.monto_recibido || 0)}</p>
-    <p><b>Cambio:</b> $${formatearCOP(venta.cambio || 0)}</p>
   `;
+
+  // 🔥 CASO ESPECIAL: si no hay descuento ni comisión
+  if (!hayDescuento && !hayComision) {
+    html += `
+      <h3>Total Final: $${formatearCOP(totalFinal)}</h3>
+    `;
+  } else {
+    // Mostrar subtotal si existe algún ajuste
+    html += `
+      <p><b>Subtotal:</b> $${formatearCOP(subtotalBase)}</p>
+    `;
+
+    if (hayDescuento) {
+      html += `
+        <p><b>Descuento Global:</b> ${descuentoGlobalPct}%</p>
+      `;
+    }
+
+    if (hayDescuento && hayComision) {
+      html += `
+        <p><b>Subtotal con descuento:</b> $${formatearCOP(
+          subtotalConDescuento,
+        )}</p>
+      `;
+    }
+
+    if (hayComision) {
+      html += `
+        <p><b>Comisión (${comisionPct.toFixed(2)}%):</b> $${formatearCOP(
+          comisionValor,
+        )}</p>
+      `;
+    }
+
+    html += `
+      <h3>Total Final: $${formatearCOP(totalFinal)}</h3>
+    `;
+  }
+
+  // Mostrar recibido y cambio solo si es efectivo
+  if (metodoPago === "efectivo") {
+    html += `
+      <p><b>Recibido:</b> $${formatearCOP(montoRecibido)}</p>
+      <p><b>Cambio:</b> $${formatearCOP(cambio)}</p>
+    `;
+  }
 
   document.getElementById("facturaContenido").innerHTML = html;
   document.getElementById("facturaModal").classList.remove("hidden");
@@ -1515,10 +1621,234 @@ function cerrarFactura() {
   document.getElementById("facturaModal").classList.add("hidden");
 }
 
-function cerrarFactura() {
-  document.getElementById("facturaModal").classList.add("hidden");
-}
-
 function abrirFactura() {
   document.getElementById("facturaModal").classList.remove("hidden");
+}
+
+function imprimirFacturaTermica() {
+  if (!ultimaVentaData) {
+    alert("No hay datos de factura disponibles.");
+    return;
+  }
+
+  const contenido = generarHTMLTermico(ultimaVentaData);
+
+  const ventana = window.open("", "PRINT", "height=600,width=400");
+
+  ventana.document.write(contenido);
+  ventana.document.close();
+
+  ventana.focus();
+
+  setTimeout(() => {
+    ventana.print();
+    ventana.close();
+  }, 500);
+}
+
+function generarHTMLTermico(data) {
+  const { venta, items } = data;
+
+  const subtotalBase = Number(venta.subtotal || 0);
+  const descuentoGlobalPct = Number(venta.descuento_global_pct || 0);
+  const comisionValor = Number(venta.comision || 0);
+  const totalFinal = Number(venta.total_final || 0);
+  const montoRecibido = Number(venta.monto_recibido || 0);
+  const cambio = Number(venta.cambio || 0);
+  const metodoPago = (venta.metodo_pago || "").toLowerCase();
+
+  const montoDescuentoGlobal = subtotalBase * (descuentoGlobalPct / 100);
+  const subtotalConDescuento = subtotalBase - montoDescuentoGlobal;
+
+  let comisionPct = 0;
+  if (subtotalConDescuento > 0 && comisionValor > 0) {
+    comisionPct = (comisionValor / subtotalConDescuento) * 100;
+  }
+
+  const hayDescuento = descuentoGlobalPct > 0;
+  const hayComision = comisionValor > 0;
+
+  let itemsHTML = "";
+
+  items.forEach((item) => {
+    const precioUnitario = Number(item.precio_unitario || 0);
+    const cantidad = Number(item.cantidad || 0);
+    const descuentoItemPct = Number(item.descuento_item_pct || 0);
+
+    // 🔐 Cálculo blindado del subtotal
+    const subtotalBruto = cantidad * precioUnitario;
+    const montoDescuentoItem = subtotalBruto * (descuentoItemPct / 100);
+    const subtotalCalculado = subtotalBruto - montoDescuentoItem;
+
+    const hayDescuentoItem = descuentoItemPct > 0;
+
+    itemsHTML += `
+    <div class="item">
+
+      <div class="linea-flex">
+        <span><strong>${item.nombre_producto || ""}</strong></span>
+        <span>${item.codigo_producto || ""}</span>
+      </div>
+
+      <div>Cantidad: ${cantidad}</div>
+      <div>Valor unitario: $${formatearCOP(precioUnitario)}</div>
+
+      ${hayDescuentoItem ? `<div>Descuento: ${descuentoItemPct}%</div>` : ""}
+
+      <div>Subtotal: $${formatearCOP(subtotalCalculado)}</div>
+
+    </div>
+
+    <hr>
+  `;
+  });
+
+  return `
+  <html>
+    <head>
+      <title>Ticket</title>
+      <style>
+        @page {
+          size: 80mm auto;
+          margin: 0;
+        }
+
+        body {
+          width: 80mm;
+          font-family: monospace;
+          font-size: 12px;
+          margin: 0;
+          padding: 5px;
+        }
+
+        h2, h3 {
+          text-align: center;
+          margin: 5px 0;
+        }
+
+        .center {
+          text-align: center;
+        }
+
+        .item {
+          margin-bottom: 5px;
+        }
+
+        .linea-flex {
+          display: flex;
+          justify-content: space-between;
+        }
+
+        hr {
+          border: none;
+          border-top: 1px dashed black;
+          margin: 5px 0;
+        }
+
+        .totales {
+          margin-top: 5px;
+        }
+
+        .totales div {
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .bold {
+          font-weight: bold;
+        }
+      </style>
+    </head>
+
+    <body>
+
+      <h2>GITANAS</h2>
+      <div class="center">
+        Factura #${venta.id_venta}<br>
+        ${new Date(venta.fecha).toLocaleString()}
+      </div>
+
+      <hr>
+
+      ${itemsHTML}
+
+      <div class="totales">
+
+        ${
+          !hayDescuento && !hayComision
+            ? `
+          <div class="bold">
+            <span>TOTAL</span>
+            <span>$${formatearCOP(totalFinal)}</span>
+          </div>
+        `
+            : `
+          <div>
+            <span>Subtotal</span>
+            <span>$${formatearCOP(subtotalBase)}</span>
+          </div>
+
+          ${
+            hayDescuento
+              ? `
+          <div>
+            <span>Dcto ${descuentoGlobalPct}%</span>
+            <span>-$${formatearCOP(montoDescuentoGlobal)}</span>
+          </div>
+          `
+              : ""
+          }
+
+          ${
+            hayDescuento && hayComision
+              ? `
+          <div>
+            <span>Sub c/dcto</span>
+            <span>$${formatearCOP(subtotalConDescuento)}</span>
+          </div>
+          `
+              : ""
+          }
+
+          ${
+            hayComision
+              ? `
+          <div>
+            <span>Comisión (${comisionPct.toFixed(2)}%)</span>
+            <span>$${formatearCOP(comisionValor)}</span>
+          </div>
+          `
+              : ""
+          }
+
+          <div class="bold">
+            <span>TOTAL</span>
+            <span>$${formatearCOP(totalFinal)}</span>
+          </div>
+        `
+        }
+
+      </div>
+
+      ${
+        metodoPago === "efectivo"
+          ? `
+      <hr>
+      <div>
+        Recibido: $${formatearCOP(montoRecibido)}<br>
+        Cambio: $${formatearCOP(cambio)}
+      </div>
+      `
+          : ""
+      }
+
+      <hr>
+
+      <div class="center">
+        ¡Gracias por su compra!
+      </div>
+
+    </body>
+  </html>
+  `;
 }

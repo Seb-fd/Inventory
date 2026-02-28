@@ -1256,3 +1256,33 @@ input[type="number"]:focus,
   font-size: 0.95rem;
   margin: var(--space-2) 0;
 }
+
+@media print {
+  body {
+    margin: 0;
+    font-family: monospace;
+  }
+
+  .ticket {
+    width: 80mm;
+    max-width: 80mm;
+  }
+
+  .ticket p {
+    margin: 2px 0;
+    font-size: 12px;
+  }
+
+  .center {
+    text-align: center;
+  }
+
+  .right {
+    text-align: right;
+  }
+
+  .line {
+    border-top: 1px dashed black;
+    margin: 5px 0;
+  }
+}
